@@ -4,3 +4,4 @@ _build
 nst-publish.install
 node_modules/
 
+.aider*
