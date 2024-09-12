@@ -97,9 +97,21 @@ let process_cargo_output crate_name output_dir =
         List.iter
           (fun src ->
             let dst = Filename.concat output_dir (Filename.basename src) in
-            copy_file src dst;
-            Printf.printf "Copied %s to %s\n" src dst)
-          filenames
+            if Filename.check_suffix src (Printf.sprintf "lib%s.a" crate_name)
+            then (
+              let dst = Filename.concat output_dir (Filename.basename src) in
+              copy_file src dst;
+              Printf.printf "Copied %s to %s\n" src dst)
+            else if Filename.check_suffix src (Printf.sprintf "lib%s.so" crate_name)
+            then (
+              let dst = Filename.concat output_dir (Printf.sprintf "dll%s.so" crate_name) in
+              copy_file src dst;
+              Printf.printf "Copied %s to %s\n" src dst))
+          (List.filter
+             (fun src ->
+               Filename.check_suffix src (Printf.sprintf "lib%s.a" crate_name)
+               || Filename.check_suffix src (Printf.sprintf "lib%s.so" crate_name))
+             filenames)
       | _ -> ())
     lines
 ;;
