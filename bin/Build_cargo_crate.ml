@@ -96,7 +96,6 @@ let process_cargo_output crate_name output_dir =
         let filenames = get_filenames json in
         List.iter
           (fun src ->
-            let dst = Filename.concat output_dir (Filename.basename src) in
             if Filename.check_suffix src (Printf.sprintf "lib%s.a" crate_name)
             then (
               let dst = Filename.concat output_dir (Filename.basename src) in
