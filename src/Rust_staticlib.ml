@@ -121,35 +121,6 @@ let rustify_crate_name crate_name =
   String.map (fun c -> if c = '-' then '_' else c) crate_name
 ;;
 
-(* Function to return content for '.cargo/config.toml' *)
-let cargo_config_content () =
-  "[registries.gitlab]\n\
-   index = \"https://gitlab-master.nvidia.com/nstorage/rust/registry.git\"\n\n\
-   [source.crates-io]\n\
-   replace-with = \"vendored-sources\"\n\n\
-   [source.gitlab]\n\
-   registry = \"https://gitlab-master.nvidia.com/nstorage/rust/registry.git\"\n\
-   replace-with = \"vendored-sources\"\n\n\
-   [source.vendored-sources]\n\
-   directory = \"vendor\"\n"
-;;
-
-let cargo_workspace_content crate_directory_names =
-  let buffer = Buffer.create 256 in
-  let pf fmt = Printf.bprintf buffer (fmt ^^ "\n") in
-  pf "[workspace]";
-  pf "resolver = \"2\"";
-  pf "";
-  pf "members = [";
-  List.iter
-    (fun crate_directory_name -> pf "    \"rust-staticlibs/%s\"," crate_directory_name)
-    crate_directory_names;
-  pf "]";
-  pf "";
-  pf "[profile.release]";
-  pf "lto = true";
-  Buffer.contents buffer
-;;
 
 (* Function to generate content for dune file *)
 let generate_dune_content crate_name dune_staticlib_name =
@@ -359,27 +330,5 @@ let generate_cargo_files project_dir staticlib_names =
       true)
     else false
   in
-  let cargo_config_dir = OpamFilename.Op.(project_dir / ".cargo") in
-  let cargo_config_path = OpamFilename.Op.(cargo_config_dir // "config.toml") in
-  let cargo_workspace_path = OpamFilename.Op.(project_dir // "Cargo.toml") in
-  (* Create the '.cargo' directory if it doesn't exist *)
-  if not (OpamFilename.exists_dir cargo_config_dir)
-  then OpamFilename.mkdir cargo_config_dir;
-  (* Write '.cargo/config.toml' only if it doesn't exist *)
-  let written_cargo_config =
-    write_file_if_not_exists cargo_config_path (cargo_config_content ())
-  in
-  let workspace_content = cargo_workspace_content staticlib_names in
-  write_file_if_not_exists cargo_workspace_path workspace_content |> ignore;
-  if written_cargo_config
-  then (
-    OpamConsole.msg "Running `cargo vendor` to vendor Rust crates...\n";
-    Util.run_cmd "cargo vendor";
-    OpamConsole.msg
-      "\n\
-       You're all set! You should now be able to use Rust static libraries in this \
-       project.\n\
-       Don't forget to re-run `cargo vendor` in case you change Rust dependencies or \
-       their versions!\n")
-  else OpamConsole.msg "Your Rust project seems to be already configured\n"
+  OpamConsole.msg "Your Rust project seems to be already configured\n"
 ;;
