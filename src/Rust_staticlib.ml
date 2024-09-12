@@ -19,24 +19,19 @@ let extract_cargo_metadata () =
   (* Parse the output into JSON *)
   let json = Yojson.Basic.from_string output in
   (* Extract the workspace members from the JSON *)
-  let packages = json |> member "workspace_members" |> to_list in
+  let workspace_members = json |> member "workspace_members" |> to_list |> List.map to_string in
+  (* Extract the packages from the JSON *)
+  let packages = json |> member "packages" |> to_list in
   (* Create a hashtable to store the crate name and path *)
   let crate_to_path = Hashtbl.create 10 in
   (* Iterate over each package *)
   List.iter
     (fun package ->
-      let package_str = to_string package in
-      (* Split the package string into crate name, version, and path *)
-      match String.split_on_char '#' package_str with
-      | [ path; crate_name_version ] ->
-        let crate_name, _version =
-          match String.split_on_char ' ' crate_name_version with
-          | [ crate_name; version ] -> crate_name, version
-          | _ -> failwith ("Unexpected crate name and version format in cargo metadata: " ^ crate_name_version)
-        in
-        let path = String.trim path |> OpamStd.String.remove_prefix ~prefix:"path+file://" in
-        Hashtbl.add crate_to_path crate_name path
-      | _ -> failwith ("Unexpected package format in cargo metadata: " ^ package_str))
+      let id = package |> member "id" |> to_string in
+      if List.mem id workspace_members then (
+        let crate_name = package |> member "name" |> to_string in
+        let manifest_path = package |> member "manifest_path" |> to_string in
+        Hashtbl.add crate_to_path crate_name manifest_path))
     packages;
   (* Extract the workspace root and target directory from the JSON *)
   let workspace_root = json |> member "workspace_root" |> to_string in
