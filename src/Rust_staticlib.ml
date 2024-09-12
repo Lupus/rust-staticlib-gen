@@ -1,4 +1,3 @@
-open OpamTypes
 open OpamStateTypes
 
 (* The name of the extension in the opam file that specifies the Rust crate
@@ -95,17 +94,16 @@ let get_crates st opam =
   let opam = OpamFormatUpgrade.opam_file opam in
   let nv = OpamFile.OPAM.package opam in
   let st = { st with opams = OpamPackage.Map.add nv opam st.opams } in
-  let univ =
-    OpamSwitchState.universe st ~requested:(OpamPackage.Set.singleton nv) Query
-  in
   (* Get the dependencies of the package *)
   let depends =
-    OpamSolver.dependency_sort
+    OpamSwitchState.dependencies
       ~depopts:true
       ~build:true
       ~post:true
-      univ
+      ~installed:true
+      st
       (OpamPackage.Set.singleton nv)
+    |> OpamPackage.Set.to_list_map (fun x -> x)
     |> List.filter (fun nv1 -> nv1 <> nv)
   in
   (* Filter the dependencies to get the crate dependencies *)
@@ -120,7 +118,6 @@ let get_crates st opam =
 let rustify_crate_name crate_name =
   String.map (fun c -> if c = '-' then '_' else c) crate_name
 ;;
-
 
 (* Function to generate content for dune file *)
 let generate_dune_content crate_name dune_staticlib_name =
@@ -300,7 +297,7 @@ let gen_staticlib st cargo_metadata project_dir f opam =
        of the Rust static library *)
     OpamConsole.msg
       "Skipping generation of Rust staticlib for %s as it does not have Rust dependencies\n"
-      (OpamFilename.to_string opam_filename);
+      (OpamFilename.to_string opam_filename)
   | _ ->
     (* Otherwise, create the directory for the Rust static library *)
     OpamConsole.msg "Creating directory %s\n" (OpamFilename.Dir.to_string crate_directory);
@@ -313,5 +310,5 @@ let gen_staticlib st cargo_metadata project_dir f opam =
     OpamConsole.msg
       "Generated Rust staticlib for %s in %s\n"
       (OpamFilename.to_string opam_filename)
-      (OpamFilename.Dir.to_string crate_directory);
+      (OpamFilename.Dir.to_string crate_directory)
 ;;
