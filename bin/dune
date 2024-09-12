@@ -1,0 +1,4 @@
+(executable
+ (modes exe)
+ (name build_cargo_crate)
+ (libraries unix yojson))

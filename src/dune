@@ -1,0 +1,15 @@
+(executable
+ (modes exe)
+ (name rust_staticlib_gen)
+ (public_name rust-staticib-gen)
+ (libraries cmdliner opam-solver opam-state yojson fpath sexplib0 parsexp))
+
+(rule
+ (target conf.txt)
+ (deps
+  (universe)
+  (sandbox none))
+ (action
+  (with-stdout-to
+   conf.txt
+   (run /usr/bin/pwd))))

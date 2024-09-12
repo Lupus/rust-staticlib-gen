@@ -1,0 +1,6 @@
+_opam
+_build
+.merlin
+nst-publish.install
+node_modules/
+
