@@ -27,16 +27,14 @@ let extract_cargo_metadata () =
     (fun package ->
       let package_str = to_string package in
       (* Split the package string into crate name, version, and path *)
-      match String.split_on_char ' ' package_str with
-      | [ crate_name; _version; path ] ->
-        (* Clean up the path string *)
-        let path =
-          path
-          |> OpamStd.String.remove_prefix ~prefix:"("
-          |> OpamStd.String.remove_suffix ~suffix:")"
-          |> OpamStd.String.remove_prefix ~prefix:"path+file://"
+      match String.split_on_char '#' package_str with
+      | [ path; crate_name_version ] ->
+        let crate_name, _version =
+          match String.split_on_char ' ' crate_name_version with
+          | [ crate_name; version ] -> crate_name, version
+          | _ -> failwith ("Unexpected crate name and version format in cargo metadata: " ^ crate_name_version)
         in
-        (* Add the crate name and path to the hashtable *)
+        let path = String.trim path |> OpamStd.String.remove_prefix ~prefix:"path+file://" in
         Hashtbl.add crate_to_path crate_name path
       | _ -> failwith ("Unexpected package format in cargo metadata: " ^ package_str))
     packages;
