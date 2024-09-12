@@ -38,7 +38,7 @@ let extract_cargo_metadata () =
         in
         (* Add the crate name and path to the hashtable *)
         Hashtbl.add crate_to_path crate_name path
-      | _ -> failwith "Unexpected package format in cargo metadata")
+      | _ -> failwith ("Unexpected package format in cargo metadata: " ^ package_str))
     packages;
   (* Extract the workspace root and target directory from the JSON *)
   let workspace_root = json |> member "workspace_root" |> to_string in
