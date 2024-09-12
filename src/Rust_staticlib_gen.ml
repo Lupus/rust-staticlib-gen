@@ -93,14 +93,10 @@ let lock_command files =
     OpamSwitchState.with_ `Lock_none gt (fun st ->
       let cargo_metadata = lazy (Rust_staticlib.extract_cargo_metadata ()) in
       let project_root = Project_root.extract_project_root () in
-      List.map
+      List.iter
         (fun (f, opam) ->
           Rust_staticlib.gen_staticlib st cargo_metadata project_root f opam)
-        opams
-      |> List.filter_map (fun x -> x)
-      |> function
-      | _ :: _ as l -> Rust_staticlib.generate_cargo_files project_root l
-      | [] -> ()))
+        opams))
 ;;
 
 let () =

@@ -301,7 +301,6 @@ let gen_staticlib st cargo_metadata project_dir f opam =
     OpamConsole.msg
       "Skipping generation of Rust staticlib for %s as it does not have Rust dependencies\n"
       (OpamFilename.to_string opam_filename);
-    None (* Return None if no static lib was generated *)
   | _ ->
     (* Otherwise, create the directory for the Rust static library *)
     OpamConsole.msg "Creating directory %s\n" (OpamFilename.Dir.to_string crate_directory);
@@ -315,20 +314,4 @@ let gen_staticlib st cargo_metadata project_dir f opam =
       "Generated Rust staticlib for %s in %s\n"
       (OpamFilename.to_string opam_filename)
       (OpamFilename.Dir.to_string crate_directory);
-    Some base_without_ext (* Return the static lib name *)
-;;
-
-(* Function to generate '.cargo/config.toml' and 'Cargo.toml' with workspace information *)
-let generate_cargo_files project_dir staticlib_names =
-  OpamConsole.msg "Checking if rest of cargo boilerplate is missing...\n";
-  let project_dir = OpamFilename.Dir.of_string project_dir in
-  let write_file_if_not_exists filename content =
-    if not (OpamFilename.exists filename)
-    then (
-      OpamFilename.write filename content;
-      OpamConsole.msg "Generated %s\n" (OpamFilename.to_string filename);
-      true)
-    else false
-  in
-  OpamConsole.msg "Your Rust project seems to be already configured\n"
 ;;
