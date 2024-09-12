@@ -99,6 +99,12 @@ let lock_command files =
         opams))
 ;;
 
+let get_path_from_args () =
+  if Array.length Sys.argv < 2 then
+    failwith "Please provide a path as a command line argument."
+  else
+    Sys.argv.(1)
+
 let () =
   Random.self_init ();
   OpamSystem.init ();
@@ -108,5 +114,6 @@ let () =
   OpamRepositoryConfig.init ();
   OpamSolverConfig.init ();
   OpamStateConfig.init ();
-  lock_command [ "." ]
+  let path = get_path_from_args () in
+  lock_command [ path ]
 ;;
