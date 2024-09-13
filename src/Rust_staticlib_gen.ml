@@ -23,6 +23,25 @@ let flag_exists flag =
   check_flag (Array.to_list Sys.argv)
 ;;
 
+let check_opam_file_errors f opam =
+  let n_errors =
+    OpamFileTools.lint opam
+    |> List.fold_left
+         (fun acc (num, kind, msg) ->
+           match kind with
+           | `Error ->
+             OpamConsole.msg "%s: Error %d: %s\n" (OpamFile.to_string f) num msg;
+             acc + 1
+           | `Warning when num = 62 -> acc
+           | `Warning ->
+             OpamConsole.msg "%s: Warning %d: %s\n" (OpamFile.to_string f) num msg;
+             acc)
+         0
+  in
+  if n_errors > 0
+  then OpamConsole.error_and_exit `File_error "Errors present in opam file, bailing out"
+;;
+
 let lock_command file output_filename =
   let file = OpamFilename.of_string file in
   let nameopt, f =
@@ -39,22 +58,7 @@ let lock_command file output_filename =
     | None -> OpamFile.OPAM.with_version (OpamPackage.Version.of_string "dev") opam
     | Some _version -> opam
   in
-  let n_errors =
-    OpamFileTools.lint opam
-    |> List.fold_left
-         (fun acc (num, kind, msg) ->
-           match kind with
-           | `Error ->
-             OpamConsole.msg "%s: Error %d: %s\n" (OpamFile.to_string f) num msg;
-             acc + 1
-           | `Warning when num = 62 -> acc
-           | `Warning ->
-             OpamConsole.msg "%s: Warning %d: %s\n" (OpamFile.to_string f) num msg;
-             acc)
-         0
-  in
-  if n_errors > 0
-  then OpamConsole.error_and_exit `File_error "Errors present in opam file, bailing out";
+  check_opam_file_errors f opam;
   let gt = OpamGlobalState.load `Lock_none in
   OpamRepositoryState.with_ `Lock_none gt (fun _rt ->
     OpamSwitchState.with_ `Lock_none gt (fun st ->
