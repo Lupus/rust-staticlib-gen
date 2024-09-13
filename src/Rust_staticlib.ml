@@ -124,7 +124,7 @@ let generate_dune_content crate_name dune_staticlib_name =
   let lib_name = rustify_crate_name crate_name in
   pf "(rule";
   pf " (targets lib%s.a dll%s.so)" lib_name lib_name;
-  pf " (deps (universe))";
+  pf " (deps (universe) (alias generated/populate-rust-staticlib))";
   pf " (locks cargo-build)";
   pf " (action";
   pf
