@@ -100,13 +100,12 @@ let lock_command files =
         opams))
 ;;
 
-let get_path_from_args () =
-  if Array.length Sys.argv < 2
-  then failwith "Please provide a path as a command line argument."
-  else Sys.argv.(1)
+let opam_files =
+  let doc = "List of opam files to process" in
+  Arg.(non_empty & pos_all file [] & info [] ~docv:"OPAM_FILES" ~doc)
 ;;
 
-let () =
+let main opam_files =
   Random.self_init ();
   OpamSystem.init ();
   let root = OpamStateConfig.opamroot () in
@@ -115,6 +114,14 @@ let () =
   OpamRepositoryConfig.init ();
   OpamSolverConfig.init ();
   OpamStateConfig.init ();
-  let path = get_path_from_args () in
-  lock_command [ path ]
+  lock_command opam_files
+;;
+
+let cmd =
+  let doc = "Generate Rust static libraries from opam files" in
+  let info = Cmd.info "rust_staticlib_gen" ~doc in
+  Cmd.v info Term.(const main $ opam_files)
+;;
+
+let () = exit (Cmd.eval cmd)
 ;;
