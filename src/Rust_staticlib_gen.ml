@@ -23,7 +23,7 @@ let flag_exists flag =
   check_flag (Array.to_list Sys.argv)
 ;;
 
-let lock_command files =
+let lock_command files output_filename =
   let files =
     List.map
       (fun f ->
@@ -76,7 +76,7 @@ let lock_command files =
       let project_root = Project_root.extract_project_root () in
       List.iter
         (fun (f, opam) ->
-          Rust_staticlib.gen_staticlib st cargo_metadata project_root f opam)
+          Rust_staticlib.gen_staticlib st cargo_metadata project_root f opam output_filename)
         opams))
 ;;
 
@@ -85,7 +85,7 @@ let opam_files =
   Arg.(non_empty & pos_all file [] & info [] ~docv:"OPAM_FILES" ~doc)
 ;;
 
-let main opam_files =
+let main opam_files output_filename =
   Random.self_init ();
   OpamSystem.init ();
   let root = OpamStateConfig.opamroot () in
@@ -94,13 +94,13 @@ let main opam_files =
   OpamRepositoryConfig.init ();
   OpamSolverConfig.init ();
   OpamStateConfig.init ();
-  lock_command opam_files
+  lock_command opam_files output_filename
 ;;
 
 let cmd =
   let doc = "Generate Rust static libraries from opam files" in
   let info = Cmd.info "rust_staticlib_gen" ~doc in
-  Cmd.v info Term.(const main $ opam_files)
+  Cmd.v info Term.(const main $ opam_files $ output_filename)
 ;;
 
 let () = exit (Cmd.eval cmd)

@@ -222,7 +222,7 @@ let generate_dune_rule filename content =
 ;;
 
 (* Function to write the crate files *)
-let write_crate crate_directory crate_name dependencies local_crate dune_staticlib_name =
+let write_crate crate_directory crate_name dependencies local_crate dune_staticlib_name output_filename =
   let write_content filename content =
     (* Convert strings to the appropriate types *)
     let basename = OpamFilename.Base.of_string filename in
@@ -240,7 +240,7 @@ let write_crate crate_directory crate_name dependencies local_crate dune_staticl
   |> generate_dune_rule "lib.rs"
   |> Buffer.add_string buffer;
   generate_dune_content crate_name dune_staticlib_name |> Buffer.add_string buffer;
-  write_content "dune" (Buffer.contents buffer)
+  write_content output_filename (Buffer.contents buffer)
 ;;
 
 (* Function to calculate the relative path from a base path to a target path *)
@@ -275,7 +275,7 @@ let relative_path_from ~base ~target =
 ;;
 
 (* Function to generate a Rust static library *)
-let gen_staticlib st cargo_metadata project_dir f opam =
+let gen_staticlib st cargo_metadata project_dir f opam output_filename =
   let project_dir = OpamFilename.Dir.of_string project_dir in
   (* Get the filename of the opam file *)
   let opam_filename = OpamFile.filename f in
@@ -330,7 +330,7 @@ let gen_staticlib st cargo_metadata project_dir f opam =
     (* Generate the name for the dune static library *)
     let dune_staticlib_name = base_without_ext |> rustify_crate_name in
     (* Write the crate files *)
-    write_crate crate_directory crate_name crate_deps local_crate dune_staticlib_name;
+    write_crate crate_directory crate_name crate_deps local_crate dune_staticlib_name output_filename;
     OpamConsole.msg
       "Generated Rust staticlib for %s in %s\n"
       (OpamFilename.to_string opam_filename)
