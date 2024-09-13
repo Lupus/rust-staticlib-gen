@@ -14,15 +14,6 @@ let read_file filename =
     List.rev !lines
 ;;
 
-let flag_exists flag =
-  let rec check_flag = function
-    | [] -> false
-    | x :: _ when x = flag -> true
-    | _ :: xs -> check_flag xs
-  in
-  check_flag (Array.to_list Sys.argv)
-;;
-
 let check_opam_file_errors f opam =
   let n_errors =
     OpamFileTools.lint opam
