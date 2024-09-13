@@ -76,8 +76,19 @@ let lock_command files output_filename =
       let project_root = Project_root.extract_project_root () in
       List.iter
         (fun (f, opam) ->
-          Rust_staticlib.gen_staticlib st cargo_metadata project_root f opam output_filename)
+          Rust_staticlib.gen_staticlib
+            st
+            cargo_metadata
+            project_root
+            f
+            opam
+            output_filename)
         opams))
+;;
+
+let output_filename =
+  let doc = "Output filename for the generated dune file" in
+  Arg.(value & opt string "dune" & info [ "o"; "output" ] ~docv:"OUTPUT" ~doc)
 ;;
 
 let opam_files =
