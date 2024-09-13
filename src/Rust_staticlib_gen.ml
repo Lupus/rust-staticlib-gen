@@ -1,4 +1,3 @@
-open OpamStateTypes
 open Cmdliner
 
 let read_file filename =
@@ -26,32 +25,13 @@ let flag_exists flag =
 
 let lock_command files =
   let files =
-    List.fold_left
-      (fun acc f ->
-        if Sys.is_directory f
-        then (
-          let d = OpamFilename.Dir.of_string f in
-          let fs =
-            OpamPinned.files_in_source d
-            |> List.map (fun { pin_name; pin } -> pin_name, pin.pin_file, None)
-          in
-          if fs = []
-          then
-            OpamConsole.error_and_exit
-              `Bad_arguments
-              "No package definition files found at %s"
-              (let open OpamFilename.Dir in
-               to_string d);
-          List.rev_append fs acc)
-        else (
-          let file = OpamFilename.of_string f in
-          ( OpamPinned.name_of_opam_filename (OpamFilename.dirname file) file
-          , OpamFile.make file
-          , None )
-          :: acc))
-      []
+    List.map
+      (fun f ->
+        let file = OpamFilename.of_string f in
+        ( OpamPinned.name_of_opam_filename (OpamFilename.dirname file) file
+        , OpamFile.make file
+        , None ))
       files
-    |> List.rev
   in
   let opams =
     List.map
@@ -124,4 +104,3 @@ let cmd =
 ;;
 
 let () = exit (Cmd.eval cmd)
-;;
