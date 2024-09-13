@@ -1,4 +1,5 @@
 open OpamStateTypes
+open Cmdliner
 
 let read_file filename =
   let lines = ref [] in
