@@ -127,7 +127,11 @@ let generate_dune_content crate_name dune_staticlib_name =
   pf " (deps (universe))";
   pf " (locks cargo-build)";
   pf " (action";
-  pf "  (run /home/kolkhovskiy/git/ocaml/rust-staticlib-gen/_build/default/bin/build_cargo_crate.exe %s)))" crate_name;
+  pf
+    "  (run \
+     /home/kolkhovskiy/git/ocaml/rust-staticlib-gen/_build/default/bin/build_cargo_crate.exe \
+     %s)))"
+    crate_name;
   pf "";
   pf "(library";
   pf " (name %s_stubs)" dune_staticlib_name;
@@ -222,7 +226,14 @@ let generate_dune_rule filename content =
 ;;
 
 (* Function to write the crate files *)
-let write_crate crate_directory crate_name dependencies local_crate dune_staticlib_name output_filename =
+let write_crate
+  crate_directory
+  crate_name
+  dependencies
+  local_crate
+  dune_staticlib_name
+  output_filename
+  =
   let write_content filename content =
     (* Convert strings to the appropriate types *)
     let basename = OpamFilename.Base.of_string filename in
@@ -330,7 +341,13 @@ let gen_staticlib st cargo_metadata project_dir f opam output_filename =
     (* Generate the name for the dune static library *)
     let dune_staticlib_name = base_without_ext |> rustify_crate_name in
     (* Write the crate files *)
-    write_crate crate_directory crate_name crate_deps local_crate dune_staticlib_name output_filename;
+    write_crate
+      crate_directory
+      crate_name
+      crate_deps
+      local_crate
+      dune_staticlib_name
+      output_filename;
     OpamConsole.msg
       "Generated Rust staticlib for %s in %s\n"
       (OpamFilename.to_string opam_filename)
