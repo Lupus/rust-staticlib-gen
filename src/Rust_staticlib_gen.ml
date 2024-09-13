@@ -33,7 +33,7 @@ let check_opam_file_errors f opam =
   then OpamConsole.error_and_exit `File_error "Errors present in opam file, bailing out"
 ;;
 
-let lock_command file output_filename =
+let lock_command file output_filename local_crate_path =
   let file = OpamFilename.of_string file in
   let nameopt, f =
     OpamPinned.name_of_opam_filename (OpamFilename.dirname file) file, OpamFile.make file
@@ -53,14 +53,22 @@ let lock_command file output_filename =
   let gt = OpamGlobalState.load `Lock_none in
   OpamRepositoryState.with_ `Lock_none gt (fun _rt ->
     OpamSwitchState.with_ `Lock_none gt (fun st ->
-      let cargo_metadata = lazy (Rust_staticlib.extract_cargo_metadata ()) in
-      let project_root = Project_root.extract_project_root () in
-      Rust_staticlib.gen_staticlib st cargo_metadata project_root f opam output_filename))
+      Rust_staticlib.gen_staticlib st local_crate_path f opam output_filename))
 ;;
 
 let output_filename =
   let doc = "Output filename for the generated dune file" in
-  Arg.(value & opt string "dune" & info [ "o"; "output" ] ~docv:"OUTPUT" ~doc)
+  Arg.(value & opt string "dune.inc.gen" & info [ "o"; "output" ] ~docv:"OUTPUT" ~doc)
+;;
+
+let local_crate_path =
+  let doc =
+    "Path (relative) to local crate which contains stubs for specified opam file"
+  in
+  Arg.(
+    value
+    & opt (some string) None
+    & info [ "l"; "local-crate-path" ] ~docv:"LOCAL_CRATE_PATH" ~doc)
 ;;
 
 let opam_file =
@@ -68,7 +76,7 @@ let opam_file =
   Arg.(required & pos 0 (some file) None & info [] ~docv:"OPAM_FILE" ~doc)
 ;;
 
-let main opam_file output_filename =
+let main opam_file output_filename local_crate_path =
   Random.self_init ();
   OpamSystem.init ();
   let root = OpamStateConfig.opamroot () in
@@ -77,13 +85,13 @@ let main opam_file output_filename =
   OpamRepositoryConfig.init ();
   OpamSolverConfig.init ();
   OpamStateConfig.init ();
-  lock_command opam_file output_filename
+  lock_command opam_file output_filename local_crate_path
 ;;
 
 let cmd =
   let doc = "Generate Rust static libraries from opam files" in
   let info = Cmd.info "rust_staticlib_gen" ~doc in
-  Cmd.v info Term.(const main $ opam_file $ output_filename)
+  Cmd.v info Term.(const main $ opam_file $ output_filename $ local_crate_path)
 ;;
 
 let () = exit (Cmd.eval cmd)
