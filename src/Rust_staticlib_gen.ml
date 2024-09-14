@@ -1,19 +1,5 @@
 open Cmdliner
 
-let read_file filename =
-  let lines = ref [] in
-  let chan = open_in filename in
-  try
-    while true do
-      lines := input_line chan :: !lines
-    done;
-    !lines
-  with
-  | End_of_file ->
-    close_in chan;
-    List.rev !lines
-;;
-
 let check_opam_file_errors f opam =
   let n_errors =
     OpamFileTools.lint opam
@@ -33,7 +19,7 @@ let check_opam_file_errors f opam =
   then OpamConsole.error_and_exit `File_error "Errors present in opam file, bailing out"
 ;;
 
-let lock_command file output_filename local_crate_path =
+let generate_command file output_filename local_crate_path =
   let file = OpamFilename.of_string file in
   let nameopt, f =
     OpamPinned.name_of_opam_filename (OpamFilename.dirname file) file, OpamFile.make file
@@ -85,7 +71,7 @@ let main opam_file output_filename local_crate_path =
   OpamRepositoryConfig.init ();
   OpamSolverConfig.init ();
   OpamStateConfig.init ();
-  lock_command opam_file output_filename local_crate_path
+  generate_command opam_file output_filename local_crate_path
 ;;
 
 let cmd =
