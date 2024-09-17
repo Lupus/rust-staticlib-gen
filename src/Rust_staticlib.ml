@@ -212,7 +212,9 @@ let generate_cargo_toml_content crate_name dependencies local_crate =
      pf "[dependencies]";
      (match local_crate with
       | None -> ()
-      | Some (name, path) -> pf "%s = { path = \"%s\" }" name path);
+      | Some (name, path) ->
+        pf "# Declared by local opam package";
+        pf "%s = { path = \"%s\" }" name path);
      List.iter
        (function
          | { name; version; registry = Some registry; opam_package } ->
