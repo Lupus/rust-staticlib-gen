@@ -11,6 +11,7 @@ type crate_dependency =
   { name : string
   ; version : string
   ; registry : string option
+  ; opam_package : string
   }
 
 (* Function to parse metadata from opam file *)
@@ -24,6 +25,7 @@ let parse_metadata opamext pkg =
          { name = crate
          ; version = OpamPackage.version_to_string pkg
          ; registry = Some registry
+         ; opam_package = OpamPackage.to_string pkg
          }
      (* If the extension is not correctly formatted, exit with an error *)
      | _ ->
@@ -33,7 +35,12 @@ let parse_metadata opamext pkg =
           String crate; String registry ]")
   (* If the extension is a string, return a crate_dependency object with no registry *)
   | OpamParserTypes.FullPos.String crate ->
-    Some { name = crate; version = OpamPackage.version_to_string pkg; registry = None }
+    Some
+      { name = crate
+      ; version = OpamPackage.version_to_string pkg
+      ; registry = None
+      ; opam_package = OpamPackage.to_string pkg
+      }
   (* If the extension is not a string or a list, exit with an error *)
   | _ ->
     OpamConsole.error_and_exit `Internal_error "Extension is not a string value or a list"
@@ -208,9 +215,12 @@ let generate_cargo_toml_content crate_name dependencies local_crate =
       | Some (name, path) -> pf "%s = { path = \"%s\" }" name path);
      List.iter
        (function
-         | { name; version; registry = Some registry } ->
+         | { name; version; registry = Some registry; opam_package } ->
+           pf "# Declared by opam package: %s" opam_package;
            pf "%s = { version = \"=%s\", registry=\"%s\" }" name version registry
-         | { name; version; registry = None } -> pf "%s = \"=%s\"" name version)
+         | { name; version; registry = None; opam_package } ->
+           pf "# Declared by opam package: %s" opam_package;
+           pf "%s = \"=%s\"" name version)
        dependencies);
   Buffer.contents buffer
 ;;
