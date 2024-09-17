@@ -178,7 +178,7 @@ let generate_lib_rs_content dependencies local_crate =
 ;;
 
 (* Function to generate Cargo.toml content *)
-let generate_cargo_toml_content crate_name dependencies local_crate =
+let generate_cargo_toml_content crate_name dependencies local_crate opam_package_name =
   let buffer = Buffer.create 256 in
   (* Shorter eta-expanded helper function with automatic newline *)
   let pf fmt = Printf.bprintf buffer (fmt ^^ "\n") in
@@ -320,7 +320,7 @@ let write_crate crate_name dependencies local_crate dune_staticlib_name output_f
     crate_extension_name
   |> Buffer.add_string buffer;
   (* Write the generated content to the Cargo.toml, lib.rs, and dune files *)
-  generate_cargo_toml_content crate_name dependencies local_crate
+  generate_cargo_toml_content crate_name dependencies local_crate opam_package_name
   |> generate_dune_write_file_rule "Cargo.toml"
   |> Buffer.add_string buffer;
   generate_lib_rs_content dependencies local_crate
