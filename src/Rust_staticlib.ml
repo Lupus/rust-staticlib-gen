@@ -181,6 +181,12 @@ let generate_cargo_toml_content crate_name dependencies local_crate =
 # This crate depends on all Rust crates, that were specified via
 # `%s` metadata field in opam files in the dependencie tree of your
 # project opam file.
+#
+# Dependencies are listed as exact version matches, and versions are taken
+# verbatim from corresponding opam package versions. This is done this way to
+# ensure 100%% compatibility between OCaml bindings and their Rust stubs crates.
+# In case of any confclits at cargo level, they should be resolved at opam
+# level, and this file needs to be re-generated.
 |}
     crate_extension_name;
   pf "";
