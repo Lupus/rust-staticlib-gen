@@ -1,4 +1,6 @@
 (executable
  (modes exe)
- (name build_cargo_crate)
+ (name rust_staticlib_build)
+ (public_name rust-staticlib-build)
+ (package rust-staticlib-build)
  (libraries unix yojson))

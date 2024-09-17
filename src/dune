@@ -1,7 +1,8 @@
 (executable
  (modes exe)
  (name rust_staticlib_gen)
- (public_name rust-staticib-gen)
+ (public_name rust-staticlib-gen)
+ (package rust-staticlib-gen)
  (libraries cmdliner opam-solver opam-state yojson fpath sexplib0 parsexp))
 
 (rule

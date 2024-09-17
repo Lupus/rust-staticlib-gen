@@ -27,5 +27,23 @@
    (and
     :with-test
     (>= 0.26.2)
+    (< 0.27.0)))))
+
+(package
+ (name rust-staticlib-build)
+ (maintainers "rust-staticlib-gen developers")
+ (synopsis "A tool to invoke Cargo to build the Rust staticlib")
+ (depends
+  (yojson
+   (>= 2.2.2))
+  (ocamlformat
+   (and
+    :with-test
+    (>= 0.26.2)
     (< 0.27.0)))
   (odoc :with-doc)))
+
+(package
+ (name rust-staticlib)
+ (maintainers "rust-staticlib-gen developers")
+ (synopsis "A dummy package to define staticlib virtual library"))

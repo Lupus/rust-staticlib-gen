@@ -1,0 +1,4 @@
+(library
+ (name rust_staticlib)
+ (public_name rust-staticlib)
+ (virtual_modules rust_staticlib))

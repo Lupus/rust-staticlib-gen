@@ -1,0 +1,1 @@
+val please_generate_and_link_rust_staticlib : unit
