@@ -3,9 +3,9 @@
 **rust-staticlib-gen** is a tool designed to streamline the integration of Rust
 code into OCaml projects. It automates the generation of build files and
 orchestrates the build process, allowing OCaml code to seamlessly interface with
-Rust libraries. It's accompanied by `rust-staticlib-build` wrapper tool to call
-`cargo build` and fetch artifacts, and `rust-staticlib` virtual library to flag
-presence of Rust dependencies for the end users.
+Rust libraries. It's accompanied by the `rust-staticlib-build` wrapper tool to
+call `cargo build` and fetch artifacts, and the `rust-staticlib` virtual library
+to flag the presence of Rust dependencies for the end users.
 
 **WARNING**: This is still highly experimental, use at your own risk!
 
@@ -57,18 +57,18 @@ process.
 
 ## Opam metadata-level linkage to Cargo crates
 
-Libraries with bindings to certain Cargo crates start forming some dependency
-graph on their own, one library with bindings wants to use already defined
-bindings for some other Rust entities, provided by another another library with
-bindings. For example there is
-[ocaml-lwt-interop](https://github.com/Lupus/ocaml-lwt-interop) which provides
-integration between Rust async world and OCaml's LWT monadic concurrency
+Libraries with bindings to certain Cargo crates start forming their own
+dependency graph. One library with bindings may want to use already defined
+bindings for some other Rust entities, provided by another library with
+bindings. For example, there is
+[ocaml-lwt-interop](https://github.com/Lupus/ocaml-lwt-interop), which provides
+integration between the Rust async world and OCaml's LWT monadic concurrency
 library. It offers some OCaml API which wraps some Rust entities. Some
-hypothetical bindings to `hyper` HTTP framework would be willing to leverage
+hypothetical bindings to the `hyper` HTTP framework would be willing to leverage
 some types defined by `ocaml-lwt-interop`, so that `ocaml-hyper` could build on
-top of that infrastructure. This forms independent dependency graphs within opam
-and cargo realms, and there is still this implicit knowledge that certain Cargo
-crates provide some `extern "C"` functions which are used by specific opam
+top of that infrastructure. This forms independent dependency graphs within the
+opam and cargo realms, and there is still this implicit knowledge that certain
+Cargo crates provide some `extern "C"` functions which are used by specific opam
 packages with bindings.
 
 ```mermaid
@@ -96,8 +96,8 @@ rust_hyper -->|implicit?| ocaml_hyper_stubs
 
 To encode these implicit links between opam packages and cargo crates, we
 leverage the fact that opam allows arbitrary metadata to be contained within
-opam package definition. `dune` allows you to come up with a template for
-generation of opam package, which `ocaml-lwt-interop` is using by providing
+opam package definitions. `dune` allows you to come up with a template for the
+generation of an opam package, which `ocaml-lwt-interop` is using by providing
 `rust-async.opam.template` file with the following content:
 
 ```bash
@@ -108,49 +108,50 @@ generation of opam package, which `ocaml-lwt-interop` is using by providing
 x-rust-stubs-crate: "ocaml-lwt-interop"
 ```
 
-This special `x-rust-stubs-crate` metadata allows to declare that specific opam
-package requires certain Cargo crates to be build and linked into the final
-executable so that required `extern "C"` functions are available during the
+This special `x-rust-stubs-crate` metadata allows declaring that a specific opam
+package requires certain Cargo crates to be built and linked into the final
+executable so that the required `extern "C"` functions are available during the
 linking phase.
 
 ## Rust "tainting" and scary linker errors
 
 We can't just have Rust bits compiled independently into `.a` libraries and
-throw that into the linker at the end. Rust drags in its whole stdlib into each
-`.a` file that it produces, and having multiple such `.a` libraries at linking
-phase results in sporadic linker errors regarding duplicates (especially when
-link-time optimization is enabled in Rust).
+throw them into the linker at the end. Rust drags in its whole stdlib into each
+`.a` file that it produces, and having multiple such `.a` libraries at the
+linking phase results in sporadic linker errors regarding duplicates (especially
+when link-time optimization is enabled in Rust).
 
 So we have to build Rust bits only once into a single `.a` library that would
-get linked into the final executable(s). We call it "Rust static library", or
-"Rust staticlib". It seems that debian is using this strategy to distribute Rust
+get linked into the final executable(s). We call it a "Rust static library", or
+"Rust staticlib". It seems that Debian is using this strategy to distribute Rust
 libraries - they actually distribute source code inside `*-rust` packages and
-whenever some package needs to build Rust executable - it uses installed sources
-to build it completely in one go and have the executable linked (see
+whenever some package needs to build a Rust executable - it uses installed
+sources to build it completely in one go and have the executable linked (see
 [Debian Rust packaging policy for more details](https://wiki.debian.org/Teams/RustPackaging/Policy)).
 
-Having special metadata in opam files allows to automate the creating of such
-Rust staticlib and ensure it's correct and includes all the required Cargo
+Having special metadata in opam files allows automating the creation of such a
+Rust staticlib and ensures it's correct and includes all the required Cargo
 crates to fulfill the symbols expected by OCaml binding packages.
 
-Yet for opam ecosystem this comes with a downside that some library deep in
-dependency tree of your application, requiering Rust dependencies, will expect
-certain `extern "C"` functions to be available at link time, and as you don't
-know anything about Rust in your app - it will explode at linking your
-executable with scary looking linker errors complaining about missing symbols,
+Yet for the opam ecosystem, this comes with a downside that some library deep in
+the dependency tree of your application, requiring Rust dependencies, will
+expect certain `extern "C"` functions to be available at link time, and as you
+don't know anything about Rust in your app - it will explode at linking your
+executable with scary-looking linker errors complaining about missing symbols,
 and having special metadata inside opam packages alone does not help here.
 
-To alleviate the unfriendly way to complain about missing Rust dependencies, we
-leverage dune virtual libraries. A well-known virtual library `rust-staticlib`
-should be required by dune libraries, which depend on Rust bits, and generated
-Rust staticlib will implement this library. In this case linker errors will be
-avoided, dune will complain about missing virtual library implementation, and
-while looking on how to satisfy this dependency, users should reach to
-`rust-staticlib-gen` tool, which will provide this virtual library within their
-project. Still far from ideal, but better then leaving the users with linker
-errors that they will unlikely to resolve on their own at all.
+To alleviate the unfriendly way of complaining about missing Rust dependencies,
+we leverage dune virtual libraries. A well-known virtual library `rust-staticlib`
+should be required by dune libraries, which depend on Rust bits, and the
+generated Rust staticlib will implement this library. In this case, linker
+errors will be avoided, dune will complain about missing virtual library
+implementation, and while looking for how to satisfy this dependency, users
+should reach out to the `rust-staticlib-gen` tool, which will provide this
+virtual library within their project. Still far from ideal, but better than
+leaving the users with linker errors that they will unlikely resolve on their
+own at all.
 
-Rust dependencies still will "taint" all the dependency tree up to final
+Rust dependencies still will "taint" the entire dependency tree up to the final
 executable (and including some test runner executables along the way), but this
 looks like the best way forward so far.
 
@@ -203,15 +204,15 @@ The following options ara available for `rust-staticlib-gen`:
   your opam package defines a local crate.
 - `--output FILENAME`: Specify the output filename for the generated `dune` file.
 
-**--local-crate-path**: this option is required when your opam package actually
-implements bindings to some Rust library, and you have `x-rust-stubs-crate`
+**--local-crate-path**: This option is required when your opam package actually
+implements bindings to some Rust library, and you have the `x-rust-stubs-crate`
 metadata field set right in your opam file. This path should be a relative path
-from the directory where `rust-staticlib-gen` is called to the directory,
-containing `Cargo.toml` of your crate, configured in `x-rust-stubs-crate`. This
-is required to emit proper path dependency in generated `Cargo.toml` to your
-local crate. You would need to configure Cargo workspace at the root of your
-project and include both your local crate and generated staticlib crate as
-workspace members.
+from the directory where `rust-staticlib-gen` is called to the directory
+containing the `Cargo.toml` of your crate, configured in `x-rust-stubs-crate`.
+This is required to emit a proper path dependency in the generated `Cargo.toml`
+to your local crate. You would need to configure a Cargo workspace at the root
+of your project and include both your local crate and the generated staticlib
+crate as workspace members.
 
 ## How It Works
 
@@ -220,7 +221,7 @@ by performing the following steps:
 
 1. **Dependency Extraction**: Reads an opam file to extract Rust crate
   dependencies specified via the `x-rust-stubs-crate` metadata field (this
-  involves scanning of transitive dependencies of the provided opam file).
+  involves scanning the transitive dependencies of the provided opam file).
 
 2. **Generating Build Files**: Using the extracted dependencies, it generates a
   `dune.inc` file containing rules to produce `Cargo.toml`, `lib.rs`, and
