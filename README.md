@@ -220,48 +220,49 @@ crate as workspace members.
 by performing the following steps:
 
 1. **Dependency Extraction**: Reads an opam file to extract Rust crate
-  dependencies specified via the `x-rust-stubs-crate` metadata field (this
-  involves scanning the transitive dependencies of the provided opam file).
+   dependencies specified via the `x-rust-stubs-crate` metadata field (this
+   involves scanning the transitive dependencies of the provided opam file).
 
 2. **Generating Build Files**: Using the extracted dependencies, it generates a
-  `dune.inc` file containing rules to produce `Cargo.toml`, `lib.rs`, and
-  `Rust_staticlib.ml`.
+   `dune.inc` file containing rules to produce `Cargo.toml`, `lib.rs`, and
+   `Rust_staticlib.ml`.
 
 3. **Building Rust Static Library**:
    - The `dune.inc` rules trigger `rust-staticlib-build`, which invokes Cargo to
      build the Rust static library.
    - `Cargo.toml` and `lib.rs` are used in the Cargo build process to compile
      the Rust code into static and dynamic libraries.
-   - `rust-staticlib-build` tool parses JSON output from cargo build to know
-     which artifacts it produced, and copies them to current directory, also
-     renaming them to match what OCaml expects for foreign stubs.
-   - Important note: this whole pipeline relies on cargo detecting original
-     project directory, and effectively escaping dune sandboxing
+   - The `rust-staticlib-build` tool parses JSON output from the Cargo build to
+     know which artifacts it produced and copies them to the current directory,
+     also renaming them to match what OCaml expects for foreign stubs.
+   - Important note: This whole pipeline relies on Cargo detecting the original
+     project directory and effectively escaping dune sandboxing
      (`_build/default`). Cargo is perfectly capable of maintaining incremental
      builds and hygiene around its build cache, so it does not make much sense
-     to try to squeeze cargo into dune sandbox. `dune.inc` has rules to
-     accurately track all Rust bits in the project, so that cargo is called to
+     to try to squeeze Cargo into dune sandbox. `dune.inc` has rules to
+     accurately track all Rust bits in the project, so that Cargo is called to
      rebuild the static library truly incrementally.
-   - Important note #2: cargo is run with `--offline` flag, so one has to ensure
-     that `cargo fetch` was called somewhere in the CI pipeline, or by hand
-     before building the project locally. Offline mode is required to
-     successfully build under opam sandbox, where no network access is present.
-     If calling `cargo fetch` is not feasible, one can use `cargo vendor` to
-     bundle all Rust dependencies right into the source tree, making it
-     self-contained and 100% offline compatible.
+   - Important note #2: Cargo is run with the `--offline` flag, so one has to
+     ensure that `cargo fetch` was called somewhere in the CI pipeline, or by
+     hand before building the project locally. Offline mode is required to
+     successfully build under the opam sandbox, where no network access is
+     present. If calling `cargo fetch` is not feasible, one can use `cargo
+     vendor` to bundle all Rust dependencies right into the source tree, making
+     it self-contained and 100% offline compatible.
 
 4. **Linking and Integration**:
    - The resulting Rust static library is linked into an OCaml library
      (`xxx_stubs`).
    - This OCaml library provides the `Rust_staticlib` module and implements the
      virtual library `rust-staticlib`.
-   - The `xxx_stubs` library is then linked into final executable, bringing all
-     the (transitive) Rust dependencies required for successful linking. You
+   - The `xxx_stubs` library is then linked into the final executable, bringing
+     all the (transitive) Rust dependencies required for successful linking. You
      should not use `xxx_stubs` outside of your project. The generated rules do
      not assign any public name to this library, so dune should prevent you from
      depending on this library in your public libraries - those should depend on
-     virtual library `rust-staticlib` if they need Rust bindings to be present,
-     or depend on some other library, which itself depends on `rust-staticlib`.
+     the virtual library `rust-staticlib` if they need Rust bindings to be
+     present, or depend on some other library, which itself depends on
+     `rust-staticlib`.
 
 **Diagram illustrating the build process:**
 
