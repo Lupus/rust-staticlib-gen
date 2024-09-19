@@ -7,6 +7,8 @@ Rust libraries. It's accompanied by `rust-staticlib-build` wrapper tool to call
 `cargo build` and fetch artifacts, and `rust-staticlib` virtual library to flag
 presence of Rust dependencies for the end users.
 
+**WARNING**: This is still highly experimental, use at your own risk!
+
 ## Table of Contents
 
 - [Problem Statement](#problem-statement)
