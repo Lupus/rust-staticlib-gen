@@ -13,12 +13,11 @@ presence of Rust dependencies for the end users.
 
 - [Problem Statement](#problem-statement)
 - [Opam metadata-level linkage to Cargo crates](#opam-metadata-level-linkage-to-cargo-crates)
-- [Rust "tainting" and scary linker errors](rust-tainting-and-scary-linker-errors)
+- [Rust "tainting" and scary linker errors](#rust-tainting-and-scary-linker-errors)
 - [Features](#features)
 - [Installation](#installation)
 - [Usage](#usage)
 - [How It Works](#how-it-works)
-- [Example Workflow](#example-workflow)
 - [Contributing](#contributing)
 - [License](#license)
 
