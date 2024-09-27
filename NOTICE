@@ -1,3 +1,6 @@
 rust-staticlib-gen
 
 Copyright The rust-staticlib-gen contributors
+
+This project bundles parts of Dune, which is available under an MIT License. For
+details see bin/Workspace_root.ml.

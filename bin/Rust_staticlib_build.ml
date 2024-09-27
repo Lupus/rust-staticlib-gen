@@ -86,8 +86,27 @@ let rustify_crate_name crate_name =
   String.map (fun c -> if c = '-' then '_' else c) crate_name
 ;;
 
+let temporarily_change_directory new_dir f =
+  let original_dir = Sys.getcwd () in
+  try
+    Printf.printf "Temporarily changing current dir to %s\n" new_dir;
+    Sys.chdir new_dir;
+    let result = f () in
+    Sys.chdir original_dir;
+    Printf.printf "Returning back to %s\n" original_dir;
+    result
+  with
+  | e ->
+    Printf.printf "Returning back to %s\n" original_dir;
+    Sys.chdir original_dir;
+    raise e
+;;
+
 let process_cargo_output crate_name output_dir =
-  let lines = run_cargo_build crate_name in
+  let workspace_root = Workspace_root.get () in
+  let lines =
+    temporarily_change_directory workspace_root.dir (fun () -> run_cargo_build crate_name)
+  in
   List.iter
     (fun line ->
       let crate_name = rustify_crate_name crate_name in
