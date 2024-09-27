@@ -4,6 +4,7 @@ synopsis: "Rust staticlib generation utility"
 maintainer: ["rust-staticlib-gen developers"]
 depends: [
   "dune" {>= "2.0"}
+  "toml" {>= "7.1.0"}
   "yojson" {>= "2.2.2"}
   "sexplib0" {>= "v0.16.0"}
   "parsexp" {>= "v0.16.0"}

@@ -6,12 +6,22 @@ let program_name = "rust-staticlib-gen"
    dependencies *)
 let crate_extension_name = "x-rust-stubs-crate"
 
+type dependency_source =
+  | Commandline
+  | Opam_package of string
+
+let string_of_dependency_source = function
+  | Commandline -> "command-line arguments"
+  | Opam_package name -> Printf.sprintf "opam package `%s'" name
+;;
+
 (* Defining the type for crate dependency *)
 type crate_dependency =
   { name : string
-  ; version : string
+  ; version : string option
+  ; path : string option
   ; registry : string option
-  ; opam_package : string
+  ; dependency_source : dependency_source
   }
 
 (* Function to parse metadata from opam file *)
@@ -23,9 +33,10 @@ let parse_metadata opamext pkg =
      | [ { pelem = String crate; _ }; { pelem = String registry; _ } ] ->
        Some
          { name = crate
-         ; version = OpamPackage.version_to_string pkg
+         ; version = Some (OpamPackage.version_to_string pkg)
+         ; path = None
          ; registry = Some registry
-         ; opam_package = OpamPackage.to_string pkg
+         ; dependency_source = Opam_package (OpamPackage.to_string pkg)
          }
      (* If the extension is not correctly formatted, exit with an error *)
      | _ ->
@@ -37,9 +48,10 @@ let parse_metadata opamext pkg =
   | OpamParserTypes.FullPos.String crate ->
     Some
       { name = crate
-      ; version = OpamPackage.version_to_string pkg
+      ; version = Some (OpamPackage.version_to_string pkg)
+      ; path = None
       ; registry = None
-      ; opam_package = OpamPackage.to_string pkg
+      ; dependency_source = Opam_package (OpamPackage.to_string pkg)
       }
   (* If the extension is not a string or a list, exit with an error *)
   | _ ->
@@ -216,13 +228,22 @@ let generate_cargo_toml_content crate_name dependencies local_crate opam_package
         pf "# Declared by local opam package (%s)" opam_package_name;
         pf "%s = { path = \"%s\" }" name path);
      List.iter
-       (function
-         | { name; version; registry = Some registry; opam_package } ->
-           pf "# Declared by opam package: %s" opam_package;
-           pf "%s = { version = \"=%s\", registry=\"%s\" }" name version registry
-         | { name; version; registry = None; opam_package } ->
-           pf "# Declared by opam package: %s" opam_package;
-           pf "%s = \"=%s\"" name version)
+       (fun { name; version; registry; path; dependency_source } ->
+         pf "# Declared by: %s" (string_of_dependency_source dependency_source);
+         match version, registry, path with
+         | None, None, None ->
+           failwith
+             (Printf.sprintf
+                "dependency `%s' does not specify both version and path"
+                name)
+         | ver, reg, path ->
+           let ver = Option.map (( ^ ) "=") ver in
+           [ "version", ver; "registry", reg; "path", path ]
+           |> List.filter_map (fun (key, maybe_value) ->
+             Option.map (fun value -> key, value) maybe_value)
+           |> List.map (fun (key, value) -> Printf.sprintf "%s = \"%s\"" key value)
+           |> String.concat ", "
+           |> pf "%s = { %s }" name)
        dependencies);
   Buffer.contents buffer
 ;;
@@ -344,8 +365,21 @@ let write_crate
   write_content output_filename (Buffer.contents buffer)
 ;;
 
+let load_extra_crate_manifests extra_crate_paths =
+  List.map
+    (fun path ->
+      let manifest = Cargo_manifest.get_cargo_info path in
+      { name = manifest.name
+      ; version = None
+      ; path = Some path
+      ; registry = None
+      ; dependency_source = Commandline
+      })
+    extra_crate_paths
+;;
+
 (* Function to generate a Rust static library *)
-let gen_staticlib st local_crate_path f opam output_filename =
+let gen_staticlib st local_crate_path extra_crate_paths f opam output_filename =
   (* Get the filename of the opam file *)
   let opam_filename = OpamFile.filename f in
   (* Get the base name of the opam file without the extension *)
@@ -354,7 +388,8 @@ let gen_staticlib st local_crate_path f opam output_filename =
   (* Create the crate name *)
   let crate_name = "rust-staticlib-" ^ base_without_ext in
   (* Get the crate dependencies *)
-  let crate_deps = get_crates st opam in
+  let extra_crate_dependencies = load_extra_crate_manifests extra_crate_paths in
+  let crate_deps = get_crates st opam @ extra_crate_dependencies in
   (* Get the local crate *)
   let local_crate =
     (* Get the crate extension from the opam file *)

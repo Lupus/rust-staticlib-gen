@@ -19,7 +19,7 @@ let check_opam_file_errors f opam =
   then OpamConsole.error_and_exit `File_error "Errors present in opam file, bailing out"
 ;;
 
-let generate_command file output_filename local_crate_path =
+let generate_command file output_filename local_crate_path extra_crate_paths =
   let file = OpamFilename.of_string file in
   let nameopt, f =
     OpamPinned.name_of_opam_filename (OpamFilename.dirname file) file, OpamFile.make file
@@ -39,7 +39,13 @@ let generate_command file output_filename local_crate_path =
   let gt = OpamGlobalState.load `Lock_none in
   OpamRepositoryState.with_ `Lock_none gt (fun _rt ->
     OpamSwitchState.with_ `Lock_none gt (fun st ->
-      Rust_staticlib.gen_staticlib st local_crate_path f opam output_filename))
+      Rust_staticlib.gen_staticlib
+        st
+        local_crate_path
+        extra_crate_paths
+        f
+        opam
+        output_filename))
 ;;
 
 let output_filename =
@@ -62,7 +68,15 @@ let opam_file =
   Arg.(required & pos 0 (some file) None & info [] ~docv:"OPAM_FILE" ~doc)
 ;;
 
-let main opam_file output_filename local_crate_path =
+let extra_crate_paths =
+  let doc = "Additional paths (relative) to extra crates to be included in Cargo.toml" in
+  Arg.(
+    value
+    & opt_all string []
+    & info [ "e"; "extra-crate-path" ] ~docv:"EXTRA_CRATE_PATH" ~doc)
+;;
+
+let main opam_file output_filename local_crate_path extra_crate_paths =
   Random.self_init ();
   OpamSystem.init ();
   let root = OpamStateConfig.opamroot () in
@@ -71,13 +85,15 @@ let main opam_file output_filename local_crate_path =
   OpamRepositoryConfig.init ();
   OpamSolverConfig.init ();
   OpamStateConfig.init ();
-  generate_command opam_file output_filename local_crate_path
+  generate_command opam_file output_filename local_crate_path extra_crate_paths
 ;;
 
 let cmd =
   let doc = "Generate Rust static libraries from opam files" in
   let info = Cmd.info "rust_staticlib_gen" ~doc in
-  Cmd.v info Term.(const main $ opam_file $ output_filename $ local_crate_path)
+  Cmd.v
+    info
+    Term.(const main $ opam_file $ output_filename $ local_crate_path $ extra_crate_paths)
 ;;
 
 let () = exit (Cmd.eval cmd)

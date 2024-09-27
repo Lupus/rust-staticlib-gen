@@ -9,6 +9,8 @@
  (maintainers "rust-staticlib-gen developers")
  (synopsis "Rust staticlib generation utility")
  (depends
+  (toml
+   (>= 7.1.0))
   (yojson
    (>= 2.2.2))
   (sexplib0
@@ -46,4 +48,5 @@
 (package
  (name rust-staticlib)
  (maintainers "rust-staticlib-gen developers")
- (synopsis "A dummy package to define staticlib virtual library"))
+ (synopsis "A dummy package to define staticlib virtual library")
+ (depends))
