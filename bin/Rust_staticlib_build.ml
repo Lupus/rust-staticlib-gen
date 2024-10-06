@@ -65,6 +65,13 @@ let get_filenames json =
   | _ -> failwith "Error: Could not get filenames from JSON"
 ;;
 
+let get_executable json =
+  try json |> member "executable" |> to_string_option with
+  | x ->
+    Printexc.to_string x |> print_endline;
+    None
+;;
+
 let copy_file src dst =
   let buf_size = 8192 in
   let buf = Bytes.create buf_size in
@@ -119,6 +126,12 @@ let temporarily_change_directory new_dir f =
     raise e
 ;;
 
+let set_executable_mode filename =
+  let current_perms = (Unix.stat filename).st_perm in
+  let executable_perms = current_perms lor 0o111 in
+  Unix.chmod filename executable_perms
+;;
+
 let process_cargo_output crate_name output_dir =
   let workspace_root = Workspace_root.get () in
   let lines =
@@ -126,9 +139,13 @@ let process_cargo_output crate_name output_dir =
   in
   List.iter
     (fun line ->
+      let orig_crate_name = crate_name in
       let crate_name = rustify_crate_name crate_name in
       match parse_json_line line with
-      | Some json when is_compiler_artifact json && get_target_name json = crate_name ->
+      | Some json
+        when is_compiler_artifact json
+             && (get_target_name json = crate_name
+                 || get_target_name json = orig_crate_name) ->
         let filenames = get_filenames json in
         List.iter
           (fun src ->
@@ -148,7 +165,15 @@ let process_cargo_output crate_name output_dir =
              (fun src ->
                Filename.check_suffix src (Printf.sprintf "lib%s.a" crate_name)
                || Filename.check_suffix src (Printf.sprintf "lib%s.so" crate_name))
-             filenames)
+             filenames);
+        let executable = get_executable json in
+        (match executable with
+         | Some path ->
+           let dst = Filename.concat output_dir (Filename.basename path) in
+           copy_file path dst;
+           set_executable_mode dst;
+           Printf.printf "Copied %s to %s\n" path dst
+         | None -> ())
       | _ -> ())
     lines
 ;;
