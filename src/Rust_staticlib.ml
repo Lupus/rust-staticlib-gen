@@ -366,23 +366,6 @@ let add_dune_content buffer crate_name dune_staticlib_name =
   generate_dune_content crate_name dune_staticlib_name |> Buffer.add_string buffer
 ;;
 
-let write_crate
-  crate_name
-  dependencies
-  local_crate
-  dune_staticlib_name
-  output_filename
-  opam_package_name
-  =
-  let buffer = Buffer.create 256 in
-  add_header buffer opam_package_name;
-  add_cargo_toml buffer crate_name dependencies local_crate opam_package_name;
-  add_lib_rs buffer dependencies local_crate;
-  add_ml_source buffer;
-  add_dune_content buffer crate_name dune_staticlib_name;
-  write_content output_filename (Buffer.contents buffer)
-;;
-
 let load_extra_crate_manifests extra_crate_paths =
   List.map
     (fun path ->
@@ -430,26 +413,29 @@ let gen_staticlib st params f opam =
       (* Return the crate name and the relative path as a tuple *)
       crate_name, local_crate_path)
   in
-  match crate_deps, local_crate with
-  | [], None ->
-    (* If there are no crate dependencies and no local crate, we're unable to
-       generate the Rust static library *)
-    OpamConsole.error_and_exit
-      `Bad_arguments
-      "Generation of Rust staticlib for %s failed as it does not have Rust dependencies\n"
-      (OpamFilename.to_string opam_filename)
-  | _ ->
-    (* Generate the name for the dune static library *)
-    let dune_staticlib_name = base_without_ext |> rustify_crate_name in
-    (* Write the crate files *)
-    let opam_package_name =
-      OpamFile.OPAM.package opam |> OpamPackage.name |> OpamPackage.Name.to_string
-    in
-    write_crate
-      crate_name
-      crate_deps
-      local_crate
-      dune_staticlib_name
-      output_filename
-      opam_package_name
+  let dune_staticlib_name, opam_package_name =
+    match crate_deps, local_crate with
+    | [], None ->
+      (* If there are no crate dependencies and no local crate, we're unable to
+         generate the Rust static library *)
+      OpamConsole.error_and_exit
+        `Bad_arguments
+        "Generation of Rust staticlib for %s failed as it does not have Rust dependencies\n"
+        (OpamFilename.to_string opam_filename)
+    | _ ->
+      (* Generate the name for the dune static library *)
+      let dune_staticlib_name = base_without_ext |> rustify_crate_name in
+      (* Write the crate files *)
+      let opam_package_name =
+        OpamFile.OPAM.package opam |> OpamPackage.name |> OpamPackage.Name.to_string
+      in
+      dune_staticlib_name, opam_package_name
+  in
+  let buffer = Buffer.create 256 in
+  add_header buffer opam_package_name;
+  add_cargo_toml buffer crate_name crate_deps local_crate opam_package_name;
+  add_lib_rs buffer crate_deps local_crate;
+  add_ml_source buffer;
+  add_dune_content buffer crate_name dune_staticlib_name;
+  write_content output_filename (Buffer.contents buffer)
 ;;
