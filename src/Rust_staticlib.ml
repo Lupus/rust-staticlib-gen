@@ -244,6 +244,43 @@ let load_extra_crate_manifests (extra_crate_paths : string list) =
     extra_crate_paths
 ;;
 
+let get_base_without_ext opam_filename =
+  let base = OpamFilename.Base.to_string (OpamFilename.basename opam_filename) in
+  Filename.remove_extension base
+;;
+
+let get_local_crate local_crate_path opam f =
+  Opam_pkg_meta.get_crate_ext opam (OpamFile.OPAM.package opam)
+  |> Option.map (fun { Crate_dependency.name = crate_name; _ } ->
+    let local_crate_path =
+      match local_crate_path with
+      | Some x -> x
+      | None ->
+        OpamConsole.error_and_exit
+          `Bad_arguments
+          "Opam file (%s) defines local crate %s, you need to provide a relative path to \
+           this crate via --local-crate-path"
+          (OpamFile.to_string f)
+          crate_name
+    in
+    { name = crate_name; path = local_crate_path })
+;;
+
+let get_dune_and_opam_names crate_deps local_crate base_without_ext opam_filename opam =
+  match crate_deps, local_crate with
+  | [], None ->
+    OpamConsole.error_and_exit
+      `Bad_arguments
+      "Generation of Rust staticlib for %s failed as it does not have Rust dependencies\n"
+      (OpamFilename.to_string opam_filename)
+  | _ ->
+    let dune_staticlib_name = base_without_ext |> Util.rustify_crate_name in
+    let opam_package_name =
+      OpamFile.OPAM.package opam |> OpamPackage.name |> OpamPackage.Name.to_string
+    in
+    dune_staticlib_name, opam_package_name
+;;
+
 let gen_staticlib
   (st : [< unlocked > `Lock_write ] switch_state)
   (params : Cmdline.params)
@@ -254,40 +291,13 @@ let gen_staticlib
     params
   in
   let opam_filename = OpamFile.filename f in
-  let base = OpamFilename.Base.to_string (OpamFilename.basename opam_filename) in
-  let base_without_ext = Filename.remove_extension base in
+  let base_without_ext = get_base_without_ext opam_filename in
   let crate_name = "rust-staticlib-" ^ base_without_ext in
   let extra_crate_dependencies = load_extra_crate_manifests extra_crate_paths in
   let crate_deps = Opam_pkg_meta.get_crates st opam @ extra_crate_dependencies in
-  let local_crate =
-    Opam_pkg_meta.get_crate_ext opam (OpamFile.OPAM.package opam)
-    |> Option.map (fun { Crate_dependency.name = crate_name; _ } ->
-      let local_crate_path =
-        match local_crate_path with
-        | Some x -> x
-        | None ->
-          OpamConsole.error_and_exit
-            `Bad_arguments
-            "Opam file (%s) defines local crate %s, you need to provide a relative path \
-             to this crate via --local-crate-path"
-            (OpamFile.to_string f)
-            crate_name
-      in
-      { name = crate_name; path = local_crate_path })
-  in
+  let local_crate = get_local_crate local_crate_path opam f in
   let dune_staticlib_name, opam_package_name =
-    match crate_deps, local_crate with
-    | [], None ->
-      OpamConsole.error_and_exit
-        `Bad_arguments
-        "Generation of Rust staticlib for %s failed as it does not have Rust dependencies\n"
-        (OpamFilename.to_string opam_filename)
-    | _ ->
-      let dune_staticlib_name = base_without_ext |> Util.rustify_crate_name in
-      let opam_package_name =
-        OpamFile.OPAM.package opam |> OpamPackage.name |> OpamPackage.Name.to_string
-      in
-      dune_staticlib_name, opam_package_name
+    get_dune_and_opam_names crate_deps local_crate base_without_ext opam_filename opam
   in
   let buffer = Buffer.create 256 in
   let params =
