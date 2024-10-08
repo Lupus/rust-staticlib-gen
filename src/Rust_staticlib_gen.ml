@@ -19,8 +19,8 @@ let check_opam_file_errors f opam =
   then OpamConsole.error_and_exit `File_error "Errors present in opam file, bailing out"
 ;;
 
-let generate_command file output_filename local_crate_path extra_crate_paths =
-  let file = OpamFilename.of_string file in
+let generate_command params =
+  let file = OpamFilename.of_string params.Cmdline.opam_file in
   let nameopt, f =
     OpamPinned.name_of_opam_filename (OpamFilename.dirname file) file, OpamFile.make file
   in
@@ -39,13 +39,7 @@ let generate_command file output_filename local_crate_path extra_crate_paths =
   let gt = OpamGlobalState.load `Lock_none in
   OpamRepositoryState.with_ `Lock_none gt (fun _rt ->
     OpamSwitchState.with_ `Lock_none gt (fun st ->
-      Rust_staticlib.gen_staticlib
-        st
-        local_crate_path
-        extra_crate_paths
-        f
-        opam
-        output_filename))
+      Rust_staticlib.gen_staticlib st params f opam))
 ;;
 
 let output_filename =
@@ -76,7 +70,7 @@ let extra_crate_paths =
     & info [ "e"; "extra-crate-path" ] ~docv:"EXTRA_CRATE_PATH" ~doc)
 ;;
 
-let main opam_file output_filename local_crate_path extra_crate_paths =
+let main params =
   Random.self_init ();
   OpamSystem.init ();
   let root = OpamStateConfig.opamroot () in
@@ -85,15 +79,13 @@ let main opam_file output_filename local_crate_path extra_crate_paths =
   OpamRepositoryConfig.init ();
   OpamSolverConfig.init ();
   OpamStateConfig.init ();
-  generate_command opam_file output_filename local_crate_path extra_crate_paths
+  generate_command params
 ;;
 
 let cmd =
   let doc = "Generate Rust static libraries from opam files" in
   let info = Cmd.info "rust_staticlib_gen" ~doc in
-  Cmd.v
-    info
-    Term.(const main $ opam_file $ output_filename $ local_crate_path $ extra_crate_paths)
+  Cmd.v info Term.(const main $ Cmdline.params_t)
 ;;
 
 let () = exit (Cmd.eval cmd)

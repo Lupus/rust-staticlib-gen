@@ -379,7 +379,10 @@ let load_extra_crate_manifests extra_crate_paths =
 ;;
 
 (* Function to generate a Rust static library *)
-let gen_staticlib st local_crate_path extra_crate_paths f opam output_filename =
+let gen_staticlib st params f opam =
+  let { Cmdline.opam_file = _; output_filename; local_crate_path; extra_crate_paths } =
+    params
+  in
   (* Get the filename of the opam file *)
   let opam_filename = OpamFile.filename f in
   (* Get the base name of the opam file without the extension *)
