@@ -39,7 +39,7 @@ let generate_dune_content ~crate_name ~dune_staticlib_name =
   pf "(rule";
   pf " (target rust-deps.inc)";
   pf " (deps";
-  pf "  (alias generated/populate-rust-staticlib)";
+  pf "  (alias populate-rust-staticlib)";
   pf "  (glob_files_rec %%{workspace_root}/*.rs)";
   pf "  (glob_files_rec %%{workspace_root}/Cargo.toml)";
   pf "  (glob_files_rec %%{workspace_root}/Cargo.lock))";
@@ -60,7 +60,7 @@ let generate_dune_content ~crate_name ~dune_staticlib_name =
   pf "                          ; this allows not to run Cargo build each time,";
   pf "                          ; as it will stil do the static linking, which is slow";
   pf
-    "  (alias generated/populate-rust-staticlib)) ; wait for crate generation to complete";
+    "  (alias populate-rust-staticlib)) ; wait for crate generation to complete";
   pf " (locks cargo-build)";
   pf " (action";
   pf "  (run rust-staticlib-build %s)))" crate_name;

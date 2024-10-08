@@ -14,21 +14,14 @@ let generate_dune_write_file_rule filename content =
   Printf.sprintf
     {|
 ; Create %s file in this folder within source directory
-(subdir
-  generated ; do the actual generation in `generated` subdir
-            ; this helps to hide generated files from cargo
-            ; as cargo looks for workspace by scanning the
-            ; directory tree upwards from current dir
-  (rule
-    (alias populate-rust-staticlib)
-    (targets %s)
-    (mode
-      (promote 
-        (into ..))) ; promote back to current dir
-    (action
-      (write-file ; file contents
-        %s
-        "%s"))))
+(rule
+  (alias populate-rust-staticlib)
+  (targets %s)
+  (mode promote) ; promote back to source dir
+  (action
+    (write-file ; file contents
+      %s
+      "%s")))
 |}
     filename
     filename
