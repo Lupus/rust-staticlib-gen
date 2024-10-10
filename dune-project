@@ -32,9 +32,15 @@
     (< 0.27.0)))))
 
 (package
- (name rust-staticlib-build)
+ (name rust-staticlib)
  (maintainers "rust-staticlib-gen developers")
- (synopsis "A tool to invoke Cargo to build the Rust staticlib")
+ (synopsis "A dummy package to define staticlib virtual library")
+ (depends))
+
+(package
+ (name dune-cargo-build)
+ (maintainers "rust-staticlib-gen developers")
+ (synopsis "A tool to invoke Cargo to build the Cargo crates from within dune sandbox")
  (depends
   (yojson
    (>= 2.2.2))
@@ -44,9 +50,3 @@
     (>= 0.26.2)
     (< 0.27.0)))
   (odoc :with-doc)))
-
-(package
- (name rust-staticlib)
- (maintainers "rust-staticlib-gen developers")
- (synopsis "A dummy package to define staticlib virtual library")
- (depends))

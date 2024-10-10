@@ -79,7 +79,7 @@ let generate_dune_content ~crate_name ~dune_staticlib_name =
     "  (alias populate-rust-staticlib)) ; wait for crate generation to complete";
   pf " (locks cargo-build)";
   pf " (action";
-  pf "  (run rust-staticlib-build %s)))" crate_name;
+  pf "  (run dune-cargo-build %s)))" crate_name;
   pf
     {|
 ; This library is deliberately very lightweight from OCaml perspective. It's

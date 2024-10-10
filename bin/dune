@@ -1,6 +1,6 @@
 (executable
  (modes exe)
- (name rust_staticlib_build)
- (public_name rust-staticlib-build)
- (package rust-staticlib-build)
+ (name dune_cargo_build)
+ (public_name dune-cargo-build)
+ (package dune-cargo-build)
  (libraries unix yojson))
