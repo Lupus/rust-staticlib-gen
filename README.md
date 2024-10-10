@@ -3,23 +3,31 @@
 **rust-staticlib-gen** is a tool designed to streamline the integration of Rust
 code into OCaml projects. It automates the generation of build files and
 orchestrates the build process, allowing OCaml code to seamlessly interface with
-Rust libraries. It's accompanied by the `rust-staticlib-build` wrapper tool to
-call `cargo build` and fetch artifacts, and the `rust-staticlib` virtual library
-to flag the presence of Rust dependencies for the end users.
+Rust libraries. You can think of it as a "userspace" automation for Opam/Cargo
+integration, `rust-staticlib-gen` suggest a workflow that is compatible with
+stock Opam, Dune and Cargo and allows to unblock practical integration of Rust
+libraries into OCaml projects for complex dependency hierarchies.
 
 **WARNING**: This is still highly experimental, use at your own risk!
 
 ## Table of Contents
 
-- [Problem Statement](#problem-statement)
-- [Opam metadata-level linkage to Cargo crates](#opam-metadata-level-linkage-to-cargo-crates)
-- [Rust "tainting" and scary linker errors](#rust-tainting-and-scary-linker-errors)
-- [Features](#features)
-- [Installation](#installation)
-- [Usage](#usage)
-- [How It Works](#how-it-works)
-- [Contributing](#contributing)
-- [License](#license)
+* [rust-staticlib-gen](#rust-staticlib-gen)
+   * [Table of Contents](#table-of-contents)
+   * [Problem statement](#problem-statement)
+      * [Prior discussions on this:](#prior-discussions-on-this)
+   * [Opam metadata-level linkage to Cargo crates](#opam-metadata-level-linkage-to-cargo-crates)
+   * [Rust "tainting" and scary linker errors](#rust-tainting-and-scary-linker-errors)
+   * [Features](#features)
+   * [Installation](#installation)
+   * [Usage](#usage)
+      * [Initial integration](#initial-integration)
+      * [Updating Rust dependencies](#updating-rust-dependencies)
+      * [Command-line options](#command-line-options)
+      * [dune-cargo-build](#dune-cargo-build)
+   * [How It Works](#how-it-works)
+   * [Contributing](#contributing)
+   * [License](#license)
 
 ## Problem statement
 
@@ -172,7 +180,7 @@ looks like the best way forward so far.
 
 ## Installation
 
-This package is currently not publishes onto opam repository. To install
+This package is currently not published onto opam repository. To install
 `rust-staticlib-gen`, you can use `opam` to pin it to your project:
 
 ```bash
@@ -181,13 +189,18 @@ opam pin https://github.com/Lupus/rust-staticlib-gen.git
 
 ## Usage
 
-One should typically have the following dune file to generate the Rust staticlib:
+### Initial integration
+
+`rust-staticlib-gen` should be used in projects that produce executables, which
+require Rust stubs to be linked in. That could be the actual application
+binaries, or some test binaries. One should typically have the following dune
+file to generate the Rust staticlib:
 
 ```
 (include dune.inc)
 
 (rule
- (deps ../foo-bar.opam)
+ (deps ../foo-bar.opam (universe))
  (target dune.inc.gen)
  (action
   (run rust-staticlib-gen -o %{target} %{deps})))
@@ -197,6 +210,58 @@ One should typically have the following dune file to generate the Rust staticlib
  (action
   (diff dune.inc dune.inc.gen)))
 ```
+
+Dune will complain about missing `dune.inc`, so it should also be created as an
+empty file. Running `dune runtest` and `dune promote` should populate the
+`dune.inc` file with proper rules. Whenever the set of dependncies gets changed,
+`dune runtest` needs to be re-run to update the rules in `dune.inc`.
+
+For cargo to properly find the crate, you would need to have cargo workspace
+defined at the root of your project, which can be done by creating the following
+`Cargo.toml` file:
+
+```
+[workspace]
+
+members = [
+    "rust-staticlib", # Assuming your staticlib is in ./rust-staticlib dir
+]
+```
+
+If your project defines some Rust bindings, your Cargo workspace would be more
+complex and would include the crate with bindings along with the staticlib.
+
+Running `dune build` should generate the Cargo.toml and lib.rs for the staticlib
+crate and attempt to build it. This might fail due to missing Cargo
+dependencies: `dune-cargo-build` passes `--offline` flag to `cargo build` so
+that it's compatible with opam sandboxing. To resolve this you need to run
+`cargo fetch` so that Cargo downloads the dependencies, or use `cargo vendor` so
+that your repository is self-contained and needs no internet access.
+
+Once cargo dependencies are in place, `dune build` should succeed and for
+`foo-bar.opam` package from the example above there will be `foo_bar_stubs`
+library built by `dune`. This library will link in Rust staticlib into your
+final executable, so make sure you specify it in `(libraries ...)` section in
+your `(executable ...)` stanzas.
+
+### Updating Rust dependencies
+
+As the Dune dependencies for `rust-staticlib-gen` includes `(universe)`, each
+`dune runtest` will try to update the `dune.inc`, so once the new version of the
+Opam package is installed into an Opam switch, running `dune runtest` should be
+sufficient to start the process of updating the staticlib crate definition. As
+in the above section, consecutive `dune build` should re-generate the staticlib
+definitions and attempt to build it, and same caveat applies for missing Cargo
+dependencies due to offline build.
+Some desync is inevitable as Opam packages can be installed into Opam switch
+without consecutive `dune runtest` command to regenerate the staticlib.  This
+should be easily catched by CI though, as it will try to run the tests and there
+will be diff between existing staticlib crate definition, and the correct one.
+In worst case scenario, such desyncs can cause segmentation faults as external
+function definitions will not match the actual functions linked into the final
+executable.
+
+### Command-line options
 
 The following options ara available for `rust-staticlib-gen`:
 
@@ -214,6 +279,45 @@ to your local crate. You would need to configure a Cargo workspace at the root
 of your project and include both your local crate and the generated staticlib
 crate as workspace members.
 
+### `dune-cargo-build`
+
+While `dune-cargo-build` is the actual command used in Dune rules, generated by
+`rust-staticlib-gen`, this tool is useful on its own, and can be used separately
+like in this example:
+
+```
+(rule
+ (targets stubs-gen)
+ (deps
+  stubs-gen.rs
+  (alias %{workspace_root}/rust-staticlib/rust-universe))
+ (locks cargo-build)
+ (action
+  (run dune-cargo-build stubs-gen)))
+```
+
+What it does: it runs `cargo build` in offline mode for the crate that was
+provided as an argument (in the example above - `stubs-gen`). It tells Cargo to
+emit JSON output, and parses it to figure out compiler artifacts. If artifacts
+are .a/.so, `dune-cargo-build` copies them to current directory and renames them
+to be compatible with what `(foreign_archives ...)` stanza expects
+(`lib%s.a`/`dll%s.so`). If artifacts are executables, they are only copied to
+current directory.
+
+The main value in this tool is that it invokes cargo within the project source
+directory, escaping the dune sandboxing. Running cargo within dune sandbox is
+inefficient and error-prone, cargo is smart enough about it's build cache
+hygiene, so no real reason to complicate matters here. Cargo provides absolute
+paths to artifacts in its JSON output, which comes handy when copying them to
+current directory, which is within dune sandbox.
+
+### `rust-universe` alias within staticlib dir
+
+`rust-staticlib-gen` rules include a convenient alias `rust-universe` which
+depends on all Rust/Cargo sources/configs within the project. If you need to
+re-built something whenever Rust/Cargo universe changes, feel free to depend on
+this alias as in the above rule example in `dune-cargo-build` section.
+
 ## How It Works
 
 `rust-staticlib-gen` automates the integration of Rust code into OCaml projects
@@ -228,11 +332,11 @@ by performing the following steps:
    `Rust_staticlib.ml`.
 
 3. **Building Rust Static Library**:
-   - The `dune.inc` rules trigger `rust-staticlib-build`, which invokes Cargo to
+   - The `dune.inc` rules trigger `dune-cargo-build`, which invokes Cargo to
      build the Rust static library.
    - `Cargo.toml` and `lib.rs` are used in the Cargo build process to compile
      the Rust code into static and dynamic libraries.
-   - The `rust-staticlib-build` tool parses JSON output from the Cargo build to
+   - The `dune-cargo-build` tool parses JSON output from the Cargo build to
      know which artifacts it produced and copies them to the current directory,
      also renaming them to match what OCaml expects for foreign stubs.
    - Important note: This whole pipeline relies on Cargo detecting the original
@@ -277,7 +381,7 @@ flowchart TD
     dune_file -->|Contains rules to generate| cargo_toml["Cargo.toml"]
     dune_file -->|Contains rules to generate| lib_rs["lib.rs"]
     dune_file -->|Contains rules to generate| rust_staticlib_ml["Rust_staticlib.ml"]
-    dune_file -->|Contains rule to build| rust_staticlib_build["rust-staticlib-build"]
+    dune_file -->|Contains rule to build| rust_staticlib_build["dune-cargo-build"]
     dune_file -->|Defines| ocaml_library
     rust_staticlib_build -->|Invokes| cargo_build["Cargo build"]
     cargo_build -->|Uses| cargo_toml
