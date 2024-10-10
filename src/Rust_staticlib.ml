@@ -64,6 +64,16 @@ let generate_dune_content ~crate_name ~dune_staticlib_name =
   pf "   (echo \"(%%{deps})\"))))";
   pf
     {|
+; Below alias is handy if you want to depend on changes to any Rust/Cargo
+; sources in your project, you can safely depend on it outside of this subdir
+|};
+  pf "(alias";
+  pf " (name rust-universe)";
+  pf " (deps";
+  pf "  (include rust-deps.inc) ; depend on all Rust bits in your project";
+  pf "  (alias populate-rust-staticlib))) ; and on Rust staticlib generation";
+  pf
+    {|
 ; Below rule actually compiles Rust staticlib, using a wrapper tool which
 ; invokes cargo and copies the resulting artifacts into current directory.
 ; Cargo has a flag to do that on its own, but it's still unstable.
@@ -72,11 +82,8 @@ let generate_dune_content ~crate_name ~dune_staticlib_name =
   pf "(rule";
   pf " (targets lib%s.a dll%s.so)" lib_name lib_name;
   pf " (deps";
-  pf "  (include rust-deps.inc) ; depend on all Rust bits in your project";
-  pf "                          ; this allows not to run Cargo build each time,";
-  pf "                          ; as it will stil do the static linking, which is slow";
   pf
-    "  (alias populate-rust-staticlib)) ; wait for crate generation to complete";
+     "  (alias rust-universe)) ; rebuild only if Rust bits change, linking is slow";
   pf " (locks cargo-build)";
   pf " (action";
   pf "  (run dune-cargo-build %s)))" crate_name;
