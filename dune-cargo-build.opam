@@ -2,7 +2,10 @@
 opam-version: "2.0"
 synopsis:
   "A tool to invoke Cargo to build the Cargo crates from within dune sandbox"
-maintainer: ["rust-staticlib-gen developers"]
+maintainer: ["The rust-staticlib-gen contributors"]
+authors: ["The rust-staticlib-gen contributors"]
+homepage: "https://github.com/Lupus/rust-staticlib-gen"
+bug-reports: "https://github.com/Lupus/rust-staticlib-gen/issues"
 depends: [
   "dune" {>= "2.0"}
   "yojson" {>= "2.2.2"}
