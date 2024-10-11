@@ -4,13 +4,18 @@
 
 (generate_opam_files true)
 
+(source
+ (github Lupus/rust-staticlib-gen))
+
+(license Apache-2.0)
+
+(authors "The rust-staticlib-gen contributors")
+
+(maintainers "The rust-staticlib-gen contributors")
+
 (package
  (name rust-staticlib-gen)
- (maintainers "The rust-staticlib-gen contributors")
  (synopsis "Rust staticlib generation utility")
- (authors "The rust-staticlib-gen contributors")
- (homepage "https://github.com/Lupus/rust-staticlib-gen")
- (bug_reports "https://github.com/Lupus/rust-staticlib-gen/issues")
  (depends
   (toml
    (>= 7.1.0))
@@ -36,20 +41,13 @@
 
 (package
  (name rust-staticlib)
- (maintainers "The rust-staticlib-gen contributors")
  (synopsis "A dummy package to define staticlib virtual library")
- (authors "The rust-staticlib-gen contributors")
- (homepage "https://github.com/Lupus/rust-staticlib-gen")
- (bug_reports "https://github.com/Lupus/rust-staticlib-gen/issues")
  (depends))
 
 (package
  (name dune-cargo-build)
- (maintainers "The rust-staticlib-gen contributors")
- (synopsis "A tool to invoke Cargo to build the Cargo crates from within dune sandbox")
- (authors "The rust-staticlib-gen contributors")
- (homepage "https://github.com/Lupus/rust-staticlib-gen")
- (bug_reports "https://github.com/Lupus/rust-staticlib-gen/issues")
+ (synopsis
+  "A tool to invoke Cargo to build the Cargo crates from within dune sandbox")
  (depends
   (yojson
    (>= 2.2.2))
