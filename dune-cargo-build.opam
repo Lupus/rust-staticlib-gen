@@ -8,13 +8,13 @@ license: "Apache-2.0"
 homepage: "https://github.com/Lupus/rust-staticlib-gen"
 bug-reports: "https://github.com/Lupus/rust-staticlib-gen/issues"
 depends: [
-  "dune" {>= "2.0"}
+  "dune" {>= "2.7"}
   "yojson" {>= "2.2.2"}
   "ocamlformat" {with-test & >= "0.26.2" & < "0.27.0"}
   "odoc" {with-doc}
 ]
 build: [
-  ["dune" "subst"] {pinned}
+  ["dune" "subst"] {dev}
   [
     "dune"
     "build"
