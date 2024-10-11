@@ -9,9 +9,9 @@
 
 (license Apache-2.0)
 
-(authors "The rust-staticlib-gen contributors")
+(authors "Konstantin Olkhovskiy <lupus@oxnull.net>")
 
-(maintainers "The rust-staticlib-gen contributors")
+(maintainers "Konstantin Olkhovskiy <lupus@oxnull.net>")
 
 (package
  (name rust-staticlib-gen)
