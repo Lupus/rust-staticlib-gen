@@ -82,8 +82,7 @@ let generate_dune_content ~crate_name ~dune_staticlib_name =
   pf "(rule";
   pf " (targets lib%s.a dll%s.so)" lib_name lib_name;
   pf " (deps";
-  pf
-     "  (alias rust-universe)) ; rebuild only if Rust bits change, linking is slow";
+  pf "  (alias rust-universe)) ; rebuild only if Rust bits change, linking is slow";
   pf " (locks cargo-build)";
   pf " (action";
   pf "  (run dune-cargo-build %s)))" crate_name;
