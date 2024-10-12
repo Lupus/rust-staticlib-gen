@@ -107,7 +107,7 @@ let generate_dune_content ~crate_name ~dune_staticlib_name =
   pf " (name %s_stubs)" dune_staticlib_name;
   pf " (foreign_archives %s) ; link Rust bits into the final executable" lib_name;
   pf " (modules Rust_staticlib) ; generated virtual lib implementation";
-  pf " (implements rust-staticlib) ; mark this lib as the one implementing rust-staticlib";
+  pf " (implements rust-staticlib-virtual) ; mark this lib as the one implementing rust-staticlib";
   pf " (c_library_flags";
   pf "  (-lpthread -lc -lm)))";
   Buffer.contents buffer
