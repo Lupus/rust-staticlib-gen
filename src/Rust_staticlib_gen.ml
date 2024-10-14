@@ -44,13 +44,8 @@ let generate_command params =
 
 let main params =
   Random.self_init ();
-  OpamSystem.init ();
-  let root = OpamStateConfig.opamroot () in
-  ignore (OpamStateConfig.load_defaults root);
-  OpamFormatConfig.init ();
-  OpamRepositoryConfig.init ();
-  OpamSolverConfig.init ();
-  OpamStateConfig.init ();
+  OpamClientConfig.opam_init ();
+  OpamClientConfig.init ();
   generate_command params
 ;;
 
