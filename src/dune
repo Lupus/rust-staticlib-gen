@@ -3,7 +3,7 @@
  (name rust_staticlib_gen)
  (public_name rust-staticlib-gen)
  (package rust-staticlib-gen)
- (libraries cmdliner opam-solver opam-state yojson fpath toml))
+ (libraries cmdliner opam-solver opam-state opam-client yojson fpath toml))
 
 (rule
  (target conf.txt)

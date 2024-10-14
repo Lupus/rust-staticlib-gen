@@ -14,6 +14,7 @@ depends: [
   "yojson" {>= "2.2.2"}
   "sexplib0" {>= "v0.16.0"}
   "parsexp" {>= "v0.16.0"}
+  "opam-client" {>= "2.2.1" & < "2.3"}
   "opam-state" {>= "2.2.1" & < "2.3"}
   "opam-solver" {>= "2.2.1" & < "2.3"}
   "fpath" {>= "0.7.3"}
