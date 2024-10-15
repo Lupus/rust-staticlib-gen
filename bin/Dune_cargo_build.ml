@@ -39,6 +39,17 @@ let is_diagnostic_message json =
   | _ -> false
 ;;
 
+let simplify_whitespace s =
+  String.fold_left
+    (fun (last_was_space, acc) c ->
+      if c = ' '
+      then if last_was_space then true, acc else true, acc ^ " "
+      else false, acc ^ String.make 1 c)
+    (false, "")
+    s
+  |> snd
+;;
+
 let run_cargo_build target =
   let cargo_profile_flag = if !profile = "dev" then "" else "--release" in
   let cargo_args_str = String.concat " " (List.rev !cargo_args) in
@@ -57,6 +68,7 @@ let run_cargo_build target =
         manifest_path
         cargo_args_str
   in
+  let command = simplify_whitespace command in
   Printf.printf "Running cargo build command: %s\n%!" command;
   let input = Unix.open_process_in command in
   let rec read_lines acc =
