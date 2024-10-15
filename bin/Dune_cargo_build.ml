@@ -1,6 +1,13 @@
 open Yojson.Safe
 open Yojson.Safe.Util
 
+let profile = ref "release"
+let args = ref []
+
+let speclist =
+  [ "-profile", Arg.Set_string profile, "Build profile: release (default) or dev" ]
+;;
+
 let parse_json_line line =
   try Some (from_string line) with
   | Yojson.Json_error msg -> failwith ("Error parsing JSON: " ^ msg)
@@ -20,9 +27,11 @@ let is_diagnostic_message json =
 ;;
 
 let run_cargo_build crate_name =
+  let cargo_profile_flag = if !profile = "dev" then "" else "--release" in
   let command =
     Printf.sprintf
-      "cargo build --release --offline --package %s --message-format json"
+      "cargo build %s --offline --package %s --message-format json"
+      cargo_profile_flag
       crate_name
   in
   Printf.printf "Running cargo build command: %s\n%!" command;
@@ -178,17 +187,19 @@ let process_cargo_output crate_name output_dir =
     lines
 ;;
 
+let usage_msg = "Usage: dune_cargo_build <crate_name> [output_dir]"
+let anon_fun arg = args := arg :: !args
+
 let () =
-  if Array.length Sys.argv < 2
-  then Printf.eprintf "Usage: %s <crate_name> [output_dir]\n" Sys.argv.(0)
-  else (
-    let crate_name = Sys.argv.(1) in
-    let output_dir =
-      if Array.length Sys.argv >= 3
-      then Sys.argv.(2)
-      else Sys.getcwd () (* Use current directory as default *)
-    in
+  Arg.parse speclist anon_fun usage_msg;
+  let args = List.rev !args in
+  match args with
+  | [crate_name] ->
+    process_cargo_output crate_name (Sys.getcwd ())
+  | [crate_name; output_dir] ->
     if not (Sys.file_exists output_dir && Sys.is_directory output_dir)
-    then failwith "Error: Output directory does not exist or is not a directory"
-    else process_cargo_output crate_name output_dir)
+    then failwith "Error: Output directory does not exist or is not a directory";
+    process_cargo_output crate_name output_dir
+  | _ ->
+    Printf.eprintf "Usage: %s <crate_name> [output_dir]\n" Sys.argv.(0)
 ;;
