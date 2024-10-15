@@ -2,12 +2,22 @@ open Yojson.Safe
 open Yojson.Safe.Util
 
 let profile = ref "release"
+let workspace_root = ref None
 let args = ref []
 let cargo_args = ref []
 
+type build_target =
+  | Crate_name of string
+  | Manifest_path of string
+
 let speclist =
   [ "-profile", Arg.Set_string profile, "Build profile: release (default) or dev"
-  ; "--", Arg.Rest (fun arg -> cargo_args := arg :: !cargo_args), "Pass the remaining arguments to cargo"
+  ; ( "-workspace-root"
+    , Arg.String (fun root -> workspace_root := Some root)
+    , "Workspace root (in dune rules: -workspace-root %{workspace_root})" )
+  ; ( "--"
+    , Arg.Rest (fun arg -> cargo_args := arg :: !cargo_args)
+    , "Pass the remaining arguments to cargo" )
   ]
 ;;
 
@@ -29,15 +39,23 @@ let is_diagnostic_message json =
   | _ -> false
 ;;
 
-let run_cargo_build crate_name =
+let run_cargo_build target =
   let cargo_profile_flag = if !profile = "dev" then "" else "--release" in
   let cargo_args_str = String.concat " " (List.rev !cargo_args) in
   let command =
-    Printf.sprintf
-      "cargo build %s --offline --package %s --message-format json %s"
-      cargo_profile_flag
-      crate_name
-      cargo_args_str
+    match target with
+    | Crate_name crate_name ->
+      Printf.sprintf
+        "cargo build %s --offline --package %s --message-format json %s"
+        cargo_profile_flag
+        crate_name
+        cargo_args_str
+    | Manifest_path manifest_path ->
+      Printf.sprintf
+        "cargo build %s --offline --manifest-path %s --message-format json %s"
+        cargo_profile_flag
+        manifest_path
+        cargo_args_str
   in
   Printf.printf "Running cargo build command: %s\n%!" command;
   let input = Unix.open_process_in command in
@@ -72,6 +90,11 @@ let run_cargo_build crate_name =
 let get_target_name json =
   try json |> member "target" |> member "name" |> to_string with
   | _ -> failwith "Error: Could not get target name from JSON"
+;;
+
+let get_manifest_path json =
+  try json |> member "manifest_path" |> to_string with
+  | _ -> failwith "Error: Could not get manifest path from JSON"
 ;;
 
 let get_filenames json =
@@ -146,40 +169,75 @@ let set_executable_mode filename =
   Unix.chmod filename executable_perms
 ;;
 
-let process_cargo_output crate_name output_dir =
-  let workspace_root = Workspace_root.get () in
-  let lines =
-    temporarily_change_directory workspace_root.dir (fun () -> run_cargo_build crate_name)
+let reconstruct_relative_path workspace_root =
+  let split_path path = String.split_on_char Filename.dir_sep.[0] path in
+  let current_dir = Sys.getcwd () in
+  let root_path = Filename.concat current_dir workspace_root in
+  let normalized_root = split_path (Unix.realpath root_path) in
+  let normalized_current = split_path (Unix.realpath current_dir) in
+  let rec find_common_prefix l1 l2 =
+    match l1, l2 with
+    | x :: xs, y :: ys when x = y -> find_common_prefix xs ys
+    | _ -> l2
   in
+  let relative_path = find_common_prefix normalized_root normalized_current in
+  String.concat Filename.dir_sep relative_path
+;;
+
+let process_cargo_output target output_dir =
+  let in_source_workspace_root = Workspace_root.get () in
+  let cd_to =
+    match !workspace_root with
+    | Some root ->
+      let relative_path = reconstruct_relative_path root in
+      Filename.concat in_source_workspace_root.dir relative_path
+    | None ->
+      (match target with
+       | Crate_name _ -> ()
+       | Manifest_path _ ->
+         failwith "Error: please provide -workspace-root when building by manifest path");
+      in_source_workspace_root.dir
+  in
+  let lines = temporarily_change_directory cd_to (fun () -> run_cargo_build target) in
   List.iter
     (fun line ->
-      let orig_crate_name = crate_name in
-      let crate_name = rustify_crate_name crate_name in
+      let filter =
+        match target with
+        | Crate_name name ->
+          let orig_crate_name = name in
+          let crate_name = rustify_crate_name name in
+          fun json ->
+            let target = get_target_name json in
+            target = crate_name || target = orig_crate_name
+        | Manifest_path path ->
+          let full_path = Unix.realpath (Filename.concat cd_to path) in
+          fun json ->
+            let path = get_manifest_path json in
+            path = full_path
+      in
       match parse_json_line line with
-      | Some json
-        when is_compiler_artifact json
-             && (get_target_name json = crate_name
-                 || get_target_name json = orig_crate_name) ->
+      | Some json when is_compiler_artifact json && filter json ->
         let filenames = get_filenames json in
         List.iter
           (fun src ->
-            if Filename.check_suffix src (Printf.sprintf "lib%s.a" crate_name)
+            let base = Filename.basename src in
+            if String.length base >= 3 && String.sub base 0 3 = "lib"
             then (
-              let dst = Filename.concat output_dir (Filename.basename src) in
-              copy_file src dst;
-              Printf.printf "Copied %s to %s\n" src dst)
-            else if Filename.check_suffix src (Printf.sprintf "lib%s.so" crate_name)
-            then (
-              let dst =
-                Filename.concat output_dir (Printf.sprintf "dll%s.so" crate_name)
-              in
-              copy_file src dst;
-              Printf.printf "Copied %s to %s\n" src dst))
-          (List.filter
-             (fun src ->
-               Filename.check_suffix src (Printf.sprintf "lib%s.a" crate_name)
-               || Filename.check_suffix src (Printf.sprintf "lib%s.so" crate_name))
-             filenames);
+              let rest = String.sub base 3 (String.length base - 3) in
+              if Filename.check_suffix base ".a"
+              then (
+                (* Copy .a files without renaming *)
+                let dst = Filename.concat output_dir base in
+                copy_file src dst;
+                Printf.printf "Copied %s to %s\n" src dst)
+              else if Filename.check_suffix base ".so"
+              then (
+                (* Rename .so files from lib<name>.so to dll<name>.so *)
+                let name_no_ext = Filename.chop_extension rest in
+                let dst = Filename.concat output_dir ("dll" ^ name_no_ext ^ ".so") in
+                copy_file src dst;
+                Printf.printf "Copied %s to %s\n" src dst)))
+          filenames;
         let executable = get_executable json in
         (match executable with
          | Some path ->
@@ -192,19 +250,24 @@ let process_cargo_output crate_name output_dir =
     lines
 ;;
 
-let usage_msg = "Usage: dune_cargo_build <crate_name> [output_dir]"
+let usage_msg = "Usage: dune_cargo_build <crate_name|manifest_path> [output_dir]"
 let anon_fun arg = args := arg :: !args
 
 let () =
   Arg.parse speclist anon_fun usage_msg;
   let args = List.rev !args in
   match args with
-  | [crate_name] ->
-    process_cargo_output crate_name (Sys.getcwd ())
-  | [crate_name; output_dir] ->
+  | [ arg ] ->
+    let target =
+      if Filename.check_suffix arg "Cargo.toml" then Manifest_path arg else Crate_name arg
+    in
+    process_cargo_output target (Sys.getcwd ())
+  | [ arg; output_dir ] ->
+    let target =
+      if Filename.check_suffix arg "Cargo.toml" then Manifest_path arg else Crate_name arg
+    in
     if not (Sys.file_exists output_dir && Sys.is_directory output_dir)
     then failwith "Error: Output directory does not exist or is not a directory";
-    process_cargo_output crate_name output_dir
-  | _ ->
-    Printf.eprintf "Usage: %s <crate_name> [output_dir]\n" Sys.argv.(0)
+    process_cargo_output target output_dir
+  | _ -> Printf.eprintf "Usage: %s <crate_name|manifest_path> [output_dir]\n" Sys.argv.(0)
 ;;
