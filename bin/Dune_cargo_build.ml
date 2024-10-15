@@ -3,9 +3,12 @@ open Yojson.Safe.Util
 
 let profile = ref "release"
 let args = ref []
+let cargo_args = ref []
 
 let speclist =
-  [ "-profile", Arg.Set_string profile, "Build profile: release (default) or dev" ]
+  [ "-profile", Arg.Set_string profile, "Build profile: release (default) or dev"
+  ; "--", Arg.Rest (fun arg -> cargo_args := arg :: !cargo_args), "Pass the remaining arguments to cargo"
+  ]
 ;;
 
 let parse_json_line line =
@@ -28,11 +31,13 @@ let is_diagnostic_message json =
 
 let run_cargo_build crate_name =
   let cargo_profile_flag = if !profile = "dev" then "" else "--release" in
+  let cargo_args_str = String.concat " " (List.rev !cargo_args) in
   let command =
     Printf.sprintf
-      "cargo build %s --offline --package %s --message-format json"
+      "cargo build %s --offline --package %s --message-format json %s"
       cargo_profile_flag
       crate_name
+      cargo_args_str
   in
   Printf.printf "Running cargo build command: %s\n%!" command;
   let input = Unix.open_process_in command in
