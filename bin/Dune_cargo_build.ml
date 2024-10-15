@@ -52,19 +52,31 @@ let simplify_whitespace s =
 
 let run_cargo_build target =
   let cargo_profile_flag = if !profile = "dev" then "" else "--release" in
+  let cargo_offline_flag =
+    match Connectivity.check_cargo_connectivity () with
+    | true ->
+      print_endline "Test connection to crates.io worked, assuming online mode for cargo";
+      ""
+    | false ->
+      print_endline
+        "[WARN] unable to connect to crates.io, assuming offline mode for cargo";
+      "--offline"
+  in
   let cargo_args_str = String.concat " " (List.rev !cargo_args) in
   let command =
     match target with
     | Crate_name crate_name ->
       Printf.sprintf
-        "cargo build %s --offline --package %s --message-format json %s"
+        "cargo build %s %s --package %s --message-format json %s"
         cargo_profile_flag
+        cargo_offline_flag
         crate_name
         cargo_args_str
     | Manifest_path manifest_path ->
       Printf.sprintf
-        "cargo build %s --offline --manifest-path %s --message-format json %s"
+        "cargo build %s %s --manifest-path %s --message-format json %s"
         cargo_profile_flag
+        cargo_offline_flag
         manifest_path
         cargo_args_str
   in
