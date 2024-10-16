@@ -87,8 +87,8 @@ let generate_dune_content ~crate_name ~dune_staticlib_name =
   pf " (locks cargo-build)";
   pf " (action";
   pf "  (run dune-cargo-build";
-  pf "   -profile %%{profile}";
-  pf "   -workspace-root %%{workspace_root}";
+  pf "   --profile=%%{profile}";
+  pf "   --workspace-root=%%{workspace_root}";
   pf "   ./Cargo.toml)))";
   pf
     {|
