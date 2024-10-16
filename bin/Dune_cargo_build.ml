@@ -10,9 +10,11 @@ type build_target =
   | Crate_name of string
   | Manifest_path of string
 
+let usage_msg = "Usage: dune_cargo_build <crate_name|manifest_path> [output_dir]"
+
 let speclist =
-  [ "-profile", Arg.Set_string profile, "Build profile: release (default) or dev"
-  ; ( "-workspace-root"
+  [ "--profile", Arg.Set_string profile, "Build profile: release (default) or dev"
+  ; ( "--workspace-root"
     , Arg.String (fun root -> workspace_root := Some root)
     , "Workspace root (in dune rules: -workspace-root %{workspace_root})" )
   ; ( "--"
@@ -274,8 +276,12 @@ let process_cargo_output target output_dir =
     lines
 ;;
 
-let usage_msg = "Usage: dune_cargo_build <crate_name|manifest_path> [output_dir]"
 let anon_fun arg = args := arg :: !args
+
+let print_usage () =
+  Arg.usage speclist usage_msg;
+  exit 1
+;;
 
 let () =
   Arg.parse speclist anon_fun usage_msg;
@@ -293,5 +299,6 @@ let () =
     if not (Sys.file_exists output_dir && Sys.is_directory output_dir)
     then failwith "Error: Output directory does not exist or is not a directory";
     process_cargo_output target output_dir
-  | _ -> Printf.eprintf "Usage: %s <crate_name|manifest_path> [output_dir]\n" Sys.argv.(0)
+  | [] -> print_usage ()
+  | _ -> print_usage ()
 ;;
