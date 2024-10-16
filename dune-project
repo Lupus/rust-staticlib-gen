@@ -47,7 +47,11 @@
    (and
     :with-test
     (>= 0.26.2)
-    (< 0.27.0)))))
+    (< 0.27.0)))
+  (rust-staticlib-virtual
+   (= :version))
+  (dune-cargo-build
+   (= :version))))
 
 (package
  (name rust-staticlib-virtual)
