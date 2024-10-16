@@ -20,6 +20,8 @@ depends: [
   "fpath" {>= "0.7.3"}
   "cmdliner" {>= "1.3.0"}
   "ocamlformat" {with-test & >= "0.26.2" & < "0.27.0"}
+  "rust-staticlib-virtual" {= version}
+  "dune-cargo-build" {= version}
   "odoc" {with-doc}
 ]
 build: [
