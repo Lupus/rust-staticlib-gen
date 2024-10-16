@@ -81,26 +81,51 @@ let process_cargo_output cmdline output_dir =
   let lines =
     Util.temporarily_change_directory cd_to ~f:(fun () -> run_cargo_build cmdline)
   in
+  let buffer = Buffer.create 256 in
+  let pf fmt = Printf.bprintf buffer ("[process_cargo_output] " ^^ fmt ^^ "\n") in
+  let filter =
+    let open Cargo_json in
+    match cmdline.target with
+    | Crate_name name ->
+      let orig_crate_name = name in
+      let crate_name = rustify_crate_name name in
+      fun json ->
+        let target = get_target_name json in
+        let decision = target = crate_name || target = orig_crate_name in
+        pf
+          "Crate_name filter: crate_name='%s', orig_crate_name='%s', target='%s', \
+           (target = crate_name || target = orig_crate_name) = %b"
+          crate_name
+          orig_crate_name
+          target
+          decision;
+        decision
+    | Manifest_path path ->
+      let manifest_path = Unix.realpath (Filename.concat cd_to path) in
+      fun json ->
+        let test_path = get_manifest_path json in
+        let decision = test_path = manifest_path in
+        pf
+          "Manifest_path filter: test_path='%s', manifest_path='%s', (test_path = \
+           manifest_path) = %b"
+          test_path
+          manifest_path
+          decision;
+        decision
+  in
+  let is_compiler_artifact json =
+    let decision = Cargo_json.is_compiler_artifact json in
+    pf "Cargo_json.is_compiler_artifact = %b" decision;
+    decision
+  in
+  let count = ref 0 in
   List.iter
     (fun line ->
-      let open Cargo_json in
-      let filter =
-        match cmdline.target with
-        | Crate_name name ->
-          let orig_crate_name = name in
-          let crate_name = rustify_crate_name name in
-          fun json ->
-            let target = get_target_name json in
-            target = crate_name || target = orig_crate_name
-        | Manifest_path path ->
-          let full_path = Unix.realpath (Filename.concat cd_to path) in
-          fun json ->
-            let path = get_manifest_path json in
-            path = full_path
-      in
-      match parse_line line with
+      pf "CARGO JSON LINE: %s" line;
+      match Cargo_json.parse_line line with
       | Some json when is_compiler_artifact json && filter json ->
-        let filenames = get_filenames json in
+        let filenames = Cargo_json.get_filenames json in
+        pf "Filenames: %s" (String.concat ", " filenames);
         List.iter
           (fun src ->
             let base = Filename.basename src in
@@ -112,6 +137,8 @@ let process_cargo_output cmdline output_dir =
                 (* Copy .a files without renaming *)
                 let dst = Filename.concat output_dir base in
                 Util.copy_file src dst;
+                incr count;
+                pf "COPY %s => %s" src dst;
                 Printf.printf "Copied %s to %s\n" src dst)
               else if Filename.check_suffix base ".so"
               then (
@@ -119,18 +146,29 @@ let process_cargo_output cmdline output_dir =
                 let name_no_ext = Filename.chop_extension rest in
                 let dst = Filename.concat output_dir ("dll" ^ name_no_ext ^ ".so") in
                 Util.copy_file src dst;
+                incr count;
+                pf "COPY + RENAME %s => %s" src dst;
                 Printf.printf "Copied %s to %s\n" src dst)))
           filenames;
-        let executable = get_executable json in
+        let executable = Cargo_json.get_executable json in
+        pf "Executable: %s" (Option.value ~default:"(none)" executable);
         (match executable with
          | Some path ->
            let dst = Filename.concat output_dir (Filename.basename path) in
            Util.copy_file path dst;
            Util.set_executable_mode dst;
+           incr count;
+           pf "COPY %s => %s" path dst;
            Printf.printf "Copied %s to %s\n" path dst
          | None -> ())
       | _ -> ())
-    lines
+    lines;
+  if !count = 0
+  then (
+    Printf.eprintf
+      "%s\n\nNo artifacts were copied, debug output is above...%!\n"
+      (Buffer.contents buffer);
+    exit 1)
 ;;
 
 let main () =
