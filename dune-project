@@ -68,6 +68,8 @@
  (description
   "dune-cargo-build is a tool that runs cargo build in offline mode for a specified crate, ensuring compatibility with dune's/opam's sandboxing. It parses Cargo's JSON output to determine the produced artifacts and copies them to the current directory, renaming them to match what OCaml expects for foreign stubs. This tool is useful for integrating Rust build processes into OCaml projects managed by dune.")
  (depends
+  (ocaml
+   (>= 4.13))
   (yojson
    (>= 2.2.2))
   (ocamlformat
