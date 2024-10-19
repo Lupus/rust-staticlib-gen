@@ -10,6 +10,20 @@ libraries into OCaml projects for complex dependency hierarchies.
 
 **WARNING**: This is still highly experimental, use at your own risk!
 
+If you came here because of the error like the following one:
+
+```
+$ dune build
+Error: No implementation found for virtual library "rust-staticlib-virtual"
+in /home/user/git/my-project/lib
+-> required by library "foo" in _build/default/lib
+-> required by executable test in test/dune:2
+-> required by _build/default/test/test.exe
+```
+
+Jump straight to [Installation](#installation) and [Usage](#usage) to generate
+Rust staticlib using this tool, and satisfy the linking of the executable.
+
 ## Table of Contents
 
 * [rust-staticlib-gen](#rust-staticlib-gen)
@@ -180,12 +194,15 @@ looks like the best way forward so far.
 
 ## Installation
 
-This package is currently not published onto opam repository. To install
-`rust-staticlib-gen`, you can use `opam` to pin it to your project:
+This package is published onto opam repository. To install `rust-staticlib-gen`,
+you can use `opam`:
 
 ```bash
-opam pin https://github.com/Lupus/rust-staticlib-gen.git
+opam install rust-staticlib-gen
 ```
+
+This will also install `rust-staticlib-virtual` and `dune-cargo-build`, which
+are required to use the generated Rust staticlib library.
 
 ## Usage
 
@@ -193,10 +210,19 @@ opam pin https://github.com/Lupus/rust-staticlib-gen.git
 
 `rust-staticlib-gen` should be used in projects that produce executables, which
 require Rust stubs to be linked in. That could be the actual application
-binaries, or some test binaries. One should typically have the following dune
-file to generate the Rust staticlib:
+binaries, or some test binaries.
+
+Create a directory for your Rust staticlib:
 
 ```
+mkdir rust-staticlib
+```
+
+One should typically have the following dune file (place it in
+`rust-staticlib/dune`) to generate the Rust staticlib (make sure to adjust
+`../foo-bar.opam` to be your actual opam file):
+
+```lisp
 (include dune.inc)
 
 (rule
@@ -212,37 +238,72 @@ file to generate the Rust staticlib:
 ```
 
 Dune will complain about missing `dune.inc`, so it should also be created as an
-empty file. Running `dune runtest` and `dune promote` should populate the
-`dune.inc` file with proper rules. Whenever the set of dependncies gets changed,
-`dune runtest` needs to be re-run to update the rules in `dune.inc`.
-
-For cargo to properly find the crate, you would need to have cargo workspace
-defined at the root of your project, which can be done by creating the following
-`Cargo.toml` file:
+empty file:
 
 ```
-[workspace]
-
-members = [
-    "rust-staticlib", # Assuming your staticlib is in ./rust-staticlib dir
-]
+touch rust-staticlib/dune.inc
 ```
 
-If your project defines some Rust bindings, your Cargo workspace would be more
-complex and would include the crate with bindings along with the staticlib.
+Then populate the rules for staticlib:
+
+```
+$ dune runtest --auto-promote rust-staticlib
+(... bunch of dune rules ...)
+Promoting _build/default/rust-staticlib/dune.inc.gen to
+  rust-staticlib/dune.inc.
+```
+
+If you see the error like this one:
+
+```
+[ERROR] Opam file (/home/username/git/your-project/_build/default/foo-bar.opam) defines local crate ocaml-foo-bar, you need to provide a relative path to this crate via --local-crate-path
+```
+
+Then you need to update your `rust-staticlib/dune` as follows:
+
+```lisp
+(rule
+ (deps ../foo-bar.opam (universe))
+ (target dune.inc.gen)
+ (action
+  (run rust-staticlib-gen
+    --local-crate-path=..  ; <<<< This should be relative path from this folder
+                           ; to directory which contains your ocaml-foo-bar
+                           ; crate, assuming it's defined in the root of your
+                           ; project, local crate path will be `..'
+    -o %{target} %{deps})))
+```
+
+Whenever the set of dependncies gets changed, `dune runtest` needs to be re-run
+to update the rules in `dune.inc`.
 
 Running `dune build` should generate the Cargo.toml and lib.rs for the staticlib
-crate and attempt to build it. This might fail due to missing Cargo
-dependencies: `dune-cargo-build` passes `--offline` flag to `cargo build` so
-that it's compatible with opam sandboxing. To resolve this you need to run
-`cargo fetch` so that Cargo downloads the dependencies, or use `cargo vendor` so
-that your repository is self-contained and needs no internet access.
+crate and attempt to build it:
 
-Once cargo dependencies are in place, `dune build` should succeed and for
-`foo-bar.opam` package from the example above there will be `foo_bar_stubs`
-library built by `dune`. This library will link in Rust staticlib into your
-final executable, so make sure you specify it in `(libraries ...)` section in
-your `(executable ...)` stanzas.
+```
+$ dune build rust-staticlib
+Temporarily changing current dir to /home/username/git/your-project/rust-staticlib
+Test connection to crates.io worked, assuming online mode for cargo
+Running cargo build command: cargo build --manifest-path ./Cargo.toml --message-format json 
+Returning back to /home/username/git/your-project/_build/default/rust-staticlib
+Copied /home/username/git/your-project/target/debug/librust_staticlib_foo_bar.a to /home/username/git/your-project/_build/default/rust-staticlib/librust_staticlib_foo_bar.a
+Copied /home/username/git/your-project/target/debug/librust_staticlib_foo_bar.so to /home/username/git/your-project/_build/default/rust-staticlib/dllrust_staticlib_foo_bar.so
+   Compiling libc v0.2.150
+   <....>
+   Compiling rust-staticlib-foo-ber v0.1.0 (/home/username/git/your-project/rust-staticlib)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.05s
+```
+
+If connectivity to crates.io does not work, an offline build will be attempted
+(`dune-cargo-build` passes `--offline` flag to `cargo build` in this case to be
+compatible with with opam sandboxing). Your CI environment needs to ensure that
+it runs `cargo fetch` so that Cargo downloads the dependencies, or use `cargo
+vendor` so that your repository is self-contained and needs no internet access.
+
+Once `dune build` succeeds for `rust-staticlib` directory, there will be
+`foo_bar_stubs` library built by `dune`. This library will link in Rust
+staticlib into your final executable, so make sure you specify it in
+`(libraries ...)` section in your `(executable ...)` stanzas.
 
 ### Updating Rust dependencies
 
