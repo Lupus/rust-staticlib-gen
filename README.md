@@ -305,6 +305,31 @@ Once `dune build` succeeds for `rust-staticlib` directory, there will be
 staticlib into your final executable, so make sure you specify it in
 `(libraries ...)` section in your `(executable ...)` stanzas.
 
+#### Additional crates for staticlib
+
+If you have more local Rust crates with stubs that you want to include in your
+staticlib, you can do that with `--extra-crate-path` option (can be passed multiple
+times). This can be useful if you have some project with Rust bindings, where you
+have single "production" crate that defines stubs for your OCaml library, but to
+test it you need some additional Rust stubs for your test code too that you don't
+want to include into "production" crate (test crate can have more dependencies
+unnecessary otherwise, etc). The below dune file example shows how you can use that
+in practice:
+
+```
+(rule
+ (deps ../foo-bar.opam (universe))
+ (target dune.inc.gen)
+ (action
+  (run
+   rust-staticlib-gen
+   --local-crate-path=..
+   --extra-crate-path=../test
+   -o
+   %{target}
+   %{deps})))
+```
+
 ### Updating Rust dependencies
 
 As the Dune dependencies for `rust-staticlib-gen` includes `(universe)`, each
@@ -328,6 +353,8 @@ The following options ara available for `rust-staticlib-gen`:
 
 - `--local-crate-path PATH`: Specify a relative path to a local Rust crate if
   your opam package defines a local crate.
+- `--extra-crate-path PATH`: Specify a relative path to additional local Rust
+  crate that should be included into the staticlib.
 - `--output FILENAME`: Specify the output filename for the generated `dune` file.
 
 **--local-crate-path**: This option is required when your opam package actually
@@ -339,6 +366,13 @@ This is required to emit a proper path dependency in the generated `Cargo.toml`
 to your local crate. You would need to configure a Cargo workspace at the root
 of your project and include both your local crate and the generated staticlib
 crate as workspace members.
+
+**--extra-crate-path**: This option is required when you have some additonal
+crate in your project that you want to get linked into executables within your
+project. For example, this crate can provide additional Rust stubs required for
+your test binaries, and you might not want to drag those test stubs and their
+additional dependencies into your main crate with stubs. This option can be
+repeated multiple times.
 
 ### `dune-cargo-build`
 
