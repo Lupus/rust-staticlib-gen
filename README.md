@@ -330,6 +330,33 @@ in practice:
    %{deps})))
 ```
 
+#### Specify dependencies in your project
+
+You need to add the dependencies for your project, below is an example on how to do
+that in `dune-project` file, adopting this to plain .opam is trivial:
+
+```
+(package
+ (name foo-bar)
+ (synopsis "Foo Bar")
+ (depends
+  (rust-staticlib-gen
+   (and
+    (>= 0.2.0)
+    :with-test))
+  (rust-staticlib-virtual
+   (>= 0.2.0))
+  (dune-cargo-build
+   (and
+    (>= 0.2.0)
+    :build))))
+```
+
+If you're authoring new bindings - make sure that your Dune library that uses Rust
+stubs depends on `rust-staticlib-virtual`, to ensure that users of your library will
+see the error about virtual library implementation missing instead of linker errors
+about missing Rust symbols.
+
 ### Updating Rust dependencies
 
 As the Dune dependencies for `rust-staticlib-gen` includes `(universe)`, each
