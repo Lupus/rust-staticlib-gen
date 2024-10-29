@@ -2,11 +2,15 @@ type build_target =
   | Crate_name of string
   | Manifest_path of string
 
+type action =
+  | Build of build_target
+  | Cargo_command of string
+
 type t =
   { profile : string
   ; workspace_root : string option
   ; cargo_args : string list
-  ; target : build_target
+  ; action : action
   ; output_dir : string option
   }
 
@@ -34,15 +38,19 @@ let parse () =
   in
   Arg.parse speclist anon_fun usage_msg;
   let args = List.rev !args in
-  let target, output_dir =
+  let action, output_dir =
     match args with
     | [ arg ] ->
-      let target =
-        if Filename.check_suffix arg "Cargo.toml"
-        then Manifest_path arg
-        else Crate_name arg
+      let action =
+        if String.get arg 0 = '@'
+        then (
+          let cmd = String.sub arg 1 (String.length arg - 1) in
+          Cargo_command cmd)
+        else if Filename.check_suffix arg "Cargo.toml"
+        then Build (Manifest_path arg)
+        else Build (Crate_name arg)
       in
-      target, None
+      action, None
     | [ arg; output_dir ] ->
       let target =
         if Filename.check_suffix arg "Cargo.toml"
@@ -51,14 +59,14 @@ let parse () =
       in
       if not (Sys.file_exists output_dir && Sys.is_directory output_dir)
       then failwith "Error: Output directory does not exist or is not a directory";
-      target, Some output_dir
+      Build target, Some output_dir
     | [] -> print_usage ()
     | _ -> print_usage ()
   in
   { profile = !profile
   ; workspace_root = !workspace_root
   ; cargo_args = !cargo_args
-  ; target
+  ; action
   ; output_dir
   }
 ;;
