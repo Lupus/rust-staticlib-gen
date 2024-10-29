@@ -30,12 +30,67 @@ let cargo_read_lines input =
   aux []
 ;;
 
-let run_cargo_build cmdline =
-  let profile_flag = if cmdline.Cmdline.profile = "dev" then "" else "--release" in
-  let offline_flag = cargo_offline_flag () in
+(* Commands that support the --offline flag *)
+let allowed_offline_commands =
+  [ "build" (* https://doc.rust-lang.org/cargo/commands/cargo-build.html *)
+  ; "check" (* https://doc.rust-lang.org/cargo/commands/cargo-check.html *)
+  ; "run" (* https://doc.rust-lang.org/cargo/commands/cargo-run.html *)
+  ; "test" (* https://doc.rust-lang.org/cargo/commands/cargo-test.html *)
+  ; "bench" (* https://doc.rust-lang.org/cargo/commands/cargo-bench.html *)
+  ; "doc" (* https://doc.rust-lang.org/cargo/commands/cargo-doc.html *)
+  ; "generate-lockfile"
+    (* https://doc.rust-lang.org/cargo/commands/cargo-generate-lockfile.html
+       - With --offline, it can only generate a lockfile based on locally
+         available information *)
+  ; "install" (* https://doc.rust-lang.org/cargo/commands/cargo-install.html *)
+  ; "uninstall"
+    (* https://doc.rust-lang.org/cargo/commands/cargo-uninstall.html
+       - --offline flag is valid but typically not necessary for this
+         operation *)
+  ; "clean"
+    (* https://doc.rust-lang.org/cargo/commands/cargo-clean.html
+       - --offline flag is valid but typically not necessary for this
+         operation *)
+  ; "fetch"
+    (* https://doc.rust-lang.org/cargo/commands/cargo-fetch.html
+       - While it supports --offline, it primarily downloads dependencies,
+         so using it with --offline limits functionality *)
+  ; "update"
+    (* https://doc.rust-lang.org/cargo/commands/cargo-update.html
+       - With --offline, it can only update based on locally cached
+         information *)
+  ]
+;;
+
+(* Commands that support the --release flag *)
+let allowed_release_commands =
+  [ "build" (* https://doc.rust-lang.org/cargo/commands/cargo-build.html *)
+  ; "run" (* https://doc.rust-lang.org/cargo/commands/cargo-run.html *)
+  ; "test" (* https://doc.rust-lang.org/cargo/commands/cargo-test.html *)
+  ; "doc" (* https://doc.rust-lang.org/cargo/commands/cargo-doc.html *)
+  ; "install"
+    (* https://doc.rust-lang.org/cargo/commands/cargo-install.html
+       - Uses release profile by default, so --release is usually redundant *)
+  ]
+;;
+
+let build_flags cmdline command =
+  let profile_flag =
+    if List.mem command allowed_release_commands
+    then if cmdline.Cmdline.profile = "dev" then "" else "--release"
+    else ""
+  in
+  let offline_flag =
+    if List.mem command allowed_offline_commands then cargo_offline_flag () else ""
+  in
   let cargo_args_str = String.concat " " (List.rev cmdline.cargo_args) in
+  profile_flag, offline_flag, cargo_args_str
+;;
+
+let run_cargo_build cmdline target =
+  let profile_flag, offline_flag, cargo_args_str = build_flags cmdline "build" in
   let target_flag =
-    match cmdline.target with
+    match target with
     | Cmdline.Crate_name crate_name -> Printf.sprintf "--package %s" crate_name
     | Cmdline.Manifest_path manifest_path ->
       Printf.sprintf "--manifest-path %s" manifest_path
@@ -59,12 +114,27 @@ let run_cargo_build cmdline =
   | WSTOPPED signal -> failwith ("Cargo build stopped by signal " ^ string_of_int signal)
 ;;
 
+let run_cargo_command cmdline cmd =
+  let profile_flag, offline_flag, cargo_args_str = build_flags cmdline cmd in
+  let command =
+    Printf.sprintf "cargo %s %s %s %s" cmd profile_flag offline_flag cargo_args_str
+  in
+  let command = Util.simplify_whitespace command in
+  let in_source_workspace_root = Workspace_root.get () in
+  Printf.printf
+    "Changing dir to in-source workspace root: %s\n%!"
+    in_source_workspace_root.dir;
+  Sys.chdir in_source_workspace_root.dir;
+  Printf.printf "Running cargo command: %s\n%!" command;
+  Unix.execvp "cargo" (Array.of_list (String.split_on_char ' ' command))
+;;
+
 (* Function to replace '-' with '_' in crate name *)
 let rustify_crate_name crate_name =
   String.map (fun c -> if c = '-' then '_' else c) crate_name
 ;;
 
-let process_cargo_output cmdline output_dir =
+let process_cargo_output cmdline target output_dir =
   let in_source_workspace_root = Workspace_root.get () in
   let cd_to =
     match cmdline.Cmdline.workspace_root with
@@ -72,21 +142,21 @@ let process_cargo_output cmdline output_dir =
       let relative_path = Util.reconstruct_relative_path root in
       Filename.concat in_source_workspace_root.dir relative_path
     | None ->
-      (match cmdline.target with
+      (match target with
        | Cmdline.Crate_name _ -> ()
        | Cmdline.Manifest_path _ ->
          failwith "Error: please provide -workspace-root when building by manifest path");
       in_source_workspace_root.dir
   in
   let lines =
-    Util.temporarily_change_directory cd_to ~f:(fun () -> run_cargo_build cmdline)
+    Util.temporarily_change_directory cd_to ~f:(fun () -> run_cargo_build cmdline target)
   in
   let buffer = Buffer.create 256 in
   let pf fmt = Printf.bprintf buffer ("[process_cargo_output] " ^^ fmt ^^ "\n") in
   let filter =
     let open Cargo_json in
-    match cmdline.target with
-    | Crate_name name ->
+    match target with
+    | Cmdline.Crate_name name ->
       let orig_crate_name = name in
       let crate_name = rustify_crate_name name in
       fun json ->
@@ -178,7 +248,9 @@ let main () =
     | Some dir -> dir
     | None -> Sys.getcwd ()
   in
-  process_cargo_output cmdline output_dir
+  match cmdline.Cmdline.action with
+  | Cmdline.Cargo_command cmd -> run_cargo_command cmdline cmd
+  | Build target -> process_cargo_output cmdline target output_dir
 ;;
 
 let () = main ()
