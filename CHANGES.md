@@ -1,3 +1,16 @@
+## 0.2.1 (2024-11-04)
+
+### Added
+
+- **dune-cargo-build**
+  - Add support for executing arbitrary cargo sub-commands via @-prefixed command-line argument
+
+### Fixed
+
+- **rust-staticlib-gen**
+  - Properly generate definition for `populate-rust-staticlib` alias (was
+    missing before, causing errors in certain dune commands)
+
 ## 0.2.0 (2024-10-16)
 
 ### Added
