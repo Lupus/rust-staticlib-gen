@@ -257,6 +257,11 @@ let add_header (buffer : Buffer.t) (opam_package_name : string) =
 ; opam file depend on. The Rust staticlib crate re-exports all the dependencies
 ; and builds statically and dynamically linked libraries, which consequently
 ; have all the defined symbols which are used by OCaml bindings.
+
+
+; This alias includes generation of all Rust-related bits in staticlib.
+(alias
+  (name populate-rust-staticlib))
 |}
     program_name
     crate_extension_name
