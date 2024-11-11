@@ -4,13 +4,3 @@
  (public_name rust-staticlib-gen)
  (package rust-staticlib-gen)
  (libraries cmdliner opam-solver opam-state opam-client yojson fpath toml))
-
-(rule
- (target conf.txt)
- (deps
-  (universe)
-  (sandbox none))
- (action
-  (with-stdout-to
-   conf.txt
-   (run /usr/bin/pwd))))
