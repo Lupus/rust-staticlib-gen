@@ -134,6 +134,49 @@ let rustify_crate_name crate_name =
   String.map (fun c -> if c = '-' then '_' else c) crate_name
 ;;
 
+let check_suffixes ~suffixes name =
+  suffixes |> List.fold_left (fun acc x -> acc || Filename.check_suffix name x) false
+;;
+
+(*
+   OCaml expects .so suffix even on macos:
+
+   ```
+   Run opam exec -- ocamlc -config
+   version: 4.14.1
+   architecture: arm64
+   system: macosx
+   ext_exe:
+   ext_obj: .o
+   ext_asm: .s
+   ext_lib: .a
+   ext_dll: .so
+   os_type: Unix
+   ```
+
+   While cargo produces .dylib on macos, so we match whatever suffixes are expected
+   on any platform, and rename them to whatever OCaml expects for this specific
+   platform later.
+*)
+let classify src =
+  let base = Filename.basename src in
+  if String.length base >= 3 && String.sub base 0 3 = "lib"
+  then
+    if check_suffixes ~suffixes:[ ".a" ] base
+    then (
+      (* Copy static lib without renaming *)
+      let name_no_ext = Filename.chop_extension base in
+      Some (`Static name_no_ext))
+    else if check_suffixes ~suffixes:[ ".dylib"; ".so"; ".dll" ] base
+    then (
+      (* Rename dynamic lib files from lib<name>.XXX to dll<name>.XXX *)
+      let rest = String.sub base 3 (String.length base - 3) in
+      let name_no_ext = Filename.chop_extension rest in
+      Some (`Dynamic ("dll" ^ name_no_ext)))
+    else None
+  else None
+;;
+
 let process_cargo_output cmdline target output_dir =
   let in_source_workspace_root = Workspace_root.get () in
   let cd_to =
@@ -196,29 +239,25 @@ let process_cargo_output cmdline target output_dir =
       | Some json when is_compiler_artifact json && filter json ->
         let filenames = Cargo_json.get_filenames json in
         pf "Filenames: %s" (String.concat ", " filenames);
+        let ext_lib = Ocamlc_config.get "ext_lib" in
+        let ext_dll = Ocamlc_config.get "ext_dll" in
         List.iter
           (fun src ->
-            let base = Filename.basename src in
-            if String.length base >= 3 && String.sub base 0 3 = "lib"
-            then (
-              let rest = String.sub base 3 (String.length base - 3) in
-              if Filename.check_suffix base ".a"
-              then (
-                (* Copy .a files without renaming *)
-                let dst = Filename.concat output_dir base in
-                Util.copy_file src dst;
-                incr count;
-                pf "COPY %s => %s" src dst;
-                Printf.printf "Copied %s to %s\n" src dst)
-              else if Filename.check_suffix base ".so"
-              then (
-                (* Rename .so files from lib<name>.so to dll<name>.so *)
-                let name_no_ext = Filename.chop_extension rest in
-                let dst = Filename.concat output_dir ("dll" ^ name_no_ext ^ ".so") in
-                Util.copy_file src dst;
-                incr count;
-                pf "COPY + RENAME %s => %s" src dst;
-                Printf.printf "Copied %s to %s\n" src dst)))
+            let dst_name =
+              classify src
+              |> Option.map (fun src ->
+                match src with
+                | `Static name -> name ^ ext_lib
+                | `Dynamic name -> name ^ ext_dll)
+            in
+            match dst_name with
+            | Some name ->
+              let dst = Filename.concat output_dir name in
+              Util.copy_file src dst;
+              incr count;
+              pf "COPY %s => %s" src dst;
+              Printf.printf "Copied %s to %s\n" src dst
+            | None -> ())
           filenames;
         let executable = Cargo_json.get_executable json in
         pf "Executable: %s" (Option.value ~default:"(none)" executable);

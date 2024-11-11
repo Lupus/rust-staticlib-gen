@@ -80,7 +80,10 @@ let generate_dune_content ~crate_name ~dune_staticlib_name =
 ; see https://github.com/rust-lang/cargo/issues/6790
 |};
   pf "(rule";
-  pf " (targets lib%s.a dll%s.so)" lib_name lib_name;
+  pf
+    " (targets\n  \"lib%s%%{ocaml-config:ext_lib}\"\n  \"dll%s%%{ocaml-config:ext_dll}\")"
+    lib_name
+    lib_name;
   pf " (deps";
   pf "  (alias rust-universe) ; rebuild only if Rust bits change, linking is slow";
   pf "  Cargo.toml)";
