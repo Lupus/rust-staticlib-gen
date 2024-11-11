@@ -1,3 +1,15 @@
+## 0.2.2 (2024-11-11)
+
+### Added
+
+- **dune-cargo-build**
+  - Support for copying of Cargo artifacts on macos and windows platforms
+
+### Fixed
+
+- **rust-staticlib-gen**
+  - Dropped unused dune rule that prevented building on macos
+
 ## 0.2.1 (2024-11-04)
 
 ### Added
