@@ -11,6 +11,7 @@ homepage: "https://github.com/Lupus/rust-staticlib-gen"
 bug-reports: "https://github.com/Lupus/rust-staticlib-gen/issues"
 depends: [
   "dune" {>= "2.7"}
+  "ocaml" {>= "4.13"}
   "odoc" {with-doc}
 ]
 build: [
