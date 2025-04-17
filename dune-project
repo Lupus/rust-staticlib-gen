@@ -59,7 +59,9 @@
   "A Sentinel/marker package to define the rust staticlib virtual library")
  (description
   "The rust-staticlib-virtual package is a sentinel/marker package that defines a virtual dune library that indicates presence of Rust dependencies somewhere down the dependency chain. To have an implementation of this virtual library in your project, please use `rust-staticlib-gen` tool: https://github.com/Lupus/rust-staticlib-gen")
- (depends))
+ (depends
+  (ocaml
+   (>= 4.13))))
 
 (package
  (name dune-cargo-build)
