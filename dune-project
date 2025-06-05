@@ -47,7 +47,7 @@
    (and
     :with-test
     (>= 0.26.2)
-    (< 0.27.0)))
+    (< 0.28.0)))
   (rust-staticlib-virtual
    (= :version))
   (dune-cargo-build
@@ -78,5 +78,5 @@
    (and
     :with-test
     (>= 0.26.2)
-    (< 0.27.0)))
+    (< 0.28.0)))
   (odoc :with-doc)))
