@@ -1,0 +1,31 @@
+{
+    "id": "common",
+    "version": "0.1.0",
+    "name": "Install common stuff",
+    "description": "Drags in some features I tend to use, and configs things",
+    "dependsOn": {
+        "ghcr.io/eitsupi/devcontainer-features/jq-likes:2": {},
+        "ghcr.io/devcontainers/features/common-utils:2": {
+            "installZsh": true,
+            "installOhMyZsh": true,
+            "installOhMyZshConfig": true,
+            "upgradePackages": true,
+            "configureZshAsDefaultShell": true
+        },
+        "ghcr.io/devcontainers-extra/features/zsh-plugins:0": {
+            "plugins": "fzf fzf-tab",
+            "omzPlugins": "https://github.com/Aloxaf/fzf-tab"
+        },
+        "ghcr.io/devcontainers/features/python:1": {},
+        "./features/opam-switch": {},
+        "./features/rust": {},
+        "./features/git-tools": {}
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "eamodio.gitlens"
+            ]
+        }
+    }
+}

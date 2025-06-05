@@ -1,0 +1,12 @@
+{
+    "id": "git-tools",
+    "version": "0.1.0",
+    "name": "Install git tools",
+    "description": "Drags in some tools I tend to use for git",
+    "dependsOn": {
+        "ghcr.io/devcontainers/features/python:1": {},
+        "./features/opam-switch": {},
+        "./features/rust": {}
+    },
+    "postCreateCommand": "/usr/local/bin/git-tools-post-create-script.sh"
+}

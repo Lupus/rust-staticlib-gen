@@ -1,0 +1,38 @@
+{
+    "id": "opam-switch",
+    "version": "0.1.0",
+    "name": "Opam switch configuration",
+    "description": "Configures opam switch",
+    "dependsOn": {
+        "ghcr.io/devcontainers-extra/features/opam-asdf:2": {
+            "prependPath": true,
+            "forceInit": true
+        }
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "rust-lang.rust-analyzer",
+                "ocamllabs.ocaml-platform"
+            ],
+            "settings": {
+                "files.watcherExclude": {
+                    "**/.git/objects/**": true,
+                    "**/.git/subtree-cache/**": true,
+                    "**/_opam/*/**": true,
+                    "**/_build/*/**": true,
+                    "**/target/*/**": true
+                },
+                "files.associations": {
+                    "*.inc": "plaintext"
+                },
+                "[plaintext]": {
+                    "editor.formatOnSave": false
+                },
+                "rust-analyzer.cargo.extraEnv": {
+                    "OCAMLOPT": "/home/vscode/.opam/5.3.0/bin/ocamlopt"
+                }
+            }
+        }
+    }
+}

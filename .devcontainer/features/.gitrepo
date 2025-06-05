@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/Lupus/my-devcontainer-features
+	branch = main
+	commit = 81856a54af2fbe80cd23efdcdeff52287bce9283
+	parent = 51090b67add7d7601c80aaa010d3e14f1d14eacd
+	method = merge
+	cmdver = 0.4.9
